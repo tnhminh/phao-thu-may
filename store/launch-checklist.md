@@ -53,8 +53,8 @@ Các sự kiện `first_open`, `session_start` và tỷ lệ quay lại do Fireb
 - [ ] Khi app đã lên kho: điền `storeUrl` trong `www/config.js`. Bản web sẽ dẫn người chơi về Google Play khi họ bấm mua gói.
 
 ## 6. Pháp lý Việt Nam (cần luật sư xác nhận)
-- Game hiện **chơi một mình, không có máy chủ chơi online**, nên không thuộc loại G1. Nhưng phát hành game có thu tiền tại Việt Nam vẫn có thể phải **đăng ký cung cấp dịch vụ trò chơi G2/G3/G4 và thông báo phát hành** theo Nghị định 147/2024/NĐ-CP.
-- Khi làm chơi online thời gian thực (giai đoạn 2), cần **giấy phép G1 và quyết định phát hành**.
+- Định hướng hiện tại: **chỉ làm bản offline**, chưa làm chơi online. Game chơi trên một máy, không có máy chủ chơi online nên không thuộc loại G1.
+- Phát hành game có thu tiền tại Việt Nam vẫn có thể phải **đăng ký cung cấp dịch vụ trò chơi G2/G3/G4 và thông báo phát hành** theo Nghị định 147/2024/NĐ-CP.
 
 ## 7. Kế hoạch ra mắt thử (4–6 tuần)
 1. Tuần 1–2: chạy thử nghiệm kín, sửa crash và lỗi. Kiểm tra quảng cáo thật hiện đúng và mua hàng thật hoạt động.
