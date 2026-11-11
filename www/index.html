@@ -198,7 +198,7 @@ const THEMES = {
 
 THEMES.meadow.name = 'Đồng cỏ'; THEMES.sunset.name = 'Hoàng hôn'; THEMES.snow.name = 'Băng tuyết';
 // ================= Trạng thái =================
-let solid, scorch, noiseA, theme = THEMES.meadow, terrainDirty = false;
+let solid, scorch, noiseA, rockA, theme = THEMES.meadow, terrainDirty = false;
 let units = [], turnIdx = 0, cur = null, wind = 0, state = 'menu', power = 0, charging = false;
 let projs = [], booms = [], parts = [], popups = [], timer = 0, turnTotal = 1, winner = null, winTeam = -1, shake = 0, settleT = 0;
 let aiPlan = null, aiWait = 0, frame = 0, turnStartF = 0, overT = 0, banner = null;
@@ -415,44 +415,216 @@ function vnoise(x, y, s) {
 function addP(o) { parts.push(Object.assign({vx:0, vy:0, g:0, drag:1, s:3, life:40, type:'dot', c:'#fff', rot:0}, o, {t:o.life || 40})); }
 
 // ================= Nền & địa hình =================
-function renderBg() {
-  const g = bgCanvas.getContext('2d'), T = theme, BW = W + 240;
-  g.setTransform(DPR, 0, 0, DPR, 0, 0);
-  const sky = g.createLinearGradient(0, 0, 0, H);
-  sky.addColorStop(0, T.sky[0]); sky.addColorStop(.55, T.sky[1]); sky.addColorStop(1, T.sky[2]);
-  g.fillStyle = sky; g.fillRect(0, 0, BW, H);
-  if (T.stars) for (let i = 0; i < 120; i++) { g.fillStyle = `rgba(255,255,255,${Math.random()*.7})`; g.fillRect(Math.random()*BW, Math.random()*H*.4, 1.5, 1.5); }
-  const [sx, sy] = T.sunPos;
-  const glow = g.createRadialGradient(sx + 120, sy, 0, sx + 120, sy, T.sunR*6);
-  glow.addColorStop(0, 'rgba(255,240,200,.55)'); glow.addColorStop(1, 'rgba(255,240,200,0)');
-  g.fillStyle = glow; g.fillRect(0, 0, BW, H);
-  g.fillStyle = T.sun; g.beginPath(); g.arc(sx + 120, sy, T.sunR, 0, Math.PI*2); g.fill();
-  for (let L = 0; L < 3; L++) {
-    const baseY = H*(0.40 + L*0.085), amp = 70 - L*14, ph = [Math.random()*9, Math.random()*9, Math.random()*9];
-    g.beginPath(); g.moveTo(0, H);
-    for (let x = 0; x <= BW; x += 6) {
-      const y = baseY - Math.abs(Math.sin(x/(260 - L*40) + ph[0]))*amp - Math.sin(x/90 + ph[1])*amp*.25 - Math.sin(x/31 + ph[2])*5;
-      g.lineTo(x, y);
-    }
-    g.lineTo(BW, H); g.closePath();
-    const mg = g.createLinearGradient(0, baseY - amp, 0, H*.8);
-    mg.addColorStop(0, T.mtn[L]); mg.addColorStop(1, T.sky[2]);
-    g.fillStyle = mg; g.fill();
+// Hướng nắng: +1 = mặt trời bên phải (sáng từ phải), -1 = bên trái.
+const lightDir = () => theme.sunPos[0] > W/2 ? 1 : -1;
+const rgba = (c, a) => `rgba(${c[0]|0},${c[1]|0},${c[2]|0},${a})`;
+function hexRgb(h) { const n = parseInt(h.slice(1), 16); return [n >> 16, n >> 8 & 255, n & 255]; }
+const HAS_FILTER = 'filter' in tctx;
+// Dải núi có nhiễu fbm, trả về mảng độ cao theo x
+function ridge(BW, baseY, amp, rough, seed) {
+  const ys = [], p = [seed, seed*1.7, seed*2.3, seed*3.1];
+  for (let x = 0; x <= BW + 6; x += 3) {
+    const r = 1 - Math.abs(Math.sin(x/(rough*1.0) + p[0]));
+    const y = baseY - (r*r*.75 + .25)*amp - Math.sin(x/(rough*.37) + p[1])*amp*.22 - Math.sin(x/(rough*.13) + p[2])*amp*.07 - Math.sin(x/9 + p[3])*1.4;
+    ys.push(y);
   }
-  const haze = g.createLinearGradient(0, H*.35, 0, H);
-  haze.addColorStop(0, 'rgba(255,255,255,0)'); haze.addColorStop(1, 'rgba(255,255,255,.18)');
-  g.fillStyle = haze; g.fillRect(0, 0, BW, H);
+  return ys;
 }
-function makeClouds() {
-  clouds = Array.from({length: 8}, () => {
-    const s = .6 + Math.random()*.9;
-    return {x: Math.random()*W, y: 30 + Math.random()*170, s, puffs: Array.from({length: 5}, (_, i) => ({dx:(i - 2)*24*s + Math.random()*10, dy:-Math.random()*14*s - (i % 4 ? 6 : 0)*s, r:(16 + Math.random()*14)*s}))};
+const shadeCv = document.createElement('canvas'); shadeCv.width = W + 240; shadeCv.height = H;
+function ridgePath(g, ys, BW) { g.beginPath(); g.moveTo(0, H); ys.forEach((y, i) => g.lineTo(i*3, y)); g.lineTo(BW, H); g.closePath(); }
+function renderBg() {
+  const g = bgCanvas.getContext('2d'), T = theme, BW = W + 240, L = lightDir();
+  g.setTransform(DPR, 0, 0, DPR, 0, 0); g.clearRect(0, 0, BW, H);
+  const sk2 = hexRgb(T.sky[2]);
+  // Bầu trời: 4 dải màu + vệt sáng chân trời
+  const sky = g.createLinearGradient(0, 0, 0, H);
+  sky.addColorStop(0, shade(T.sky[0], -.18)); sky.addColorStop(.28, T.sky[0]); sky.addColorStop(.58, T.sky[1]); sky.addColorStop(.86, T.sky[2]); sky.addColorStop(1, T.sky[2]);
+  g.fillStyle = sky; g.fillRect(0, 0, BW, H);
+  if (T.stars) for (let i = 0; i < 220; i++) {
+    const x = Math.random()*BW, y = Math.random()*H*.45, a = Math.random()*(1 - y/(H*.45))*.9, s = Math.random() < .06 ? 2.2 : 1.1;
+    if (s > 2) { const sg = g.createRadialGradient(x, y, 0, x, y, 6); sg.addColorStop(0, `rgba(255,255,255,${a})`); sg.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = sg; g.fillRect(x - 6, y - 6, 12, 12); }
+    g.fillStyle = `rgba(255,250,240,${a})`; g.fillRect(x, y, s, s);
+  }
+  // Mây ti tầng cao
+  g.save(); if (HAS_FILTER) g.filter = 'blur(3px)';
+  for (let i = 0; i < 14; i++) {
+    const x = Math.random()*BW, y = 40 + Math.random()*H*.28, w = 120 + Math.random()*260;
+    g.fillStyle = T.stars ? 'rgba(255,170,190,.10)' : 'rgba(255,255,255,.16)';
+    g.beginPath(); g.ellipse(x, y, w, 3 + Math.random()*5, (Math.random() - .5)*.08, 0, Math.PI*2); g.fill();
+  }
+  g.restore();
+  // Mặt trời: quầng khí quyển + vành nhật hoa + đĩa có độ sâu
+  const sx = T.sunPos[0] + 120, sy = T.sunPos[1], R = T.sunR;
+  g.globalCompositeOperation = 'lighter';
+  [[R*9, .22], [R*4, .28], [R*1.9, .45]].forEach(([r, a]) => {
+    const gl = g.createRadialGradient(sx, sy, R*.6, sx, sy, r);
+    gl.addColorStop(0, `rgba(255,236,190,${a})`); gl.addColorStop(1, 'rgba(255,236,190,0)'); g.fillStyle = gl; g.fillRect(sx - r, sy - r, r*2, r*2);
+  });
+  for (let i = 0; i < 12; i++) {
+    const a = i/12*Math.PI*2 + .2, len = R*(3 + (i % 3)*1.4);
+    g.fillStyle = 'rgba(255,240,200,.05)'; g.beginPath(); g.moveTo(sx, sy);
+    g.lineTo(sx + Math.cos(a - .05)*len, sy + Math.sin(a - .05)*len); g.lineTo(sx + Math.cos(a + .05)*len, sy + Math.sin(a + .05)*len); g.fill();
+  }
+  g.globalCompositeOperation = 'source-over';
+  const disk = g.createRadialGradient(sx - R*.25, sy - R*.25, R*.1, sx, sy, R);
+  disk.addColorStop(0, '#ffffff'); disk.addColorStop(.6, T.sun); disk.addColorStop(1, shade(T.sun, -.08));
+  g.fillStyle = disk; g.beginPath(); g.arc(sx, sy, R, 0, Math.PI*2); g.fill();
+  // Ba dải núi xa: phối cảnh khí quyển (càng xa càng nhạt), sườn đón nắng được rọi sáng, sương thung lũng
+  for (let k = 0; k < 3; k++) {
+    const baseY = H*(0.42 + k*0.075), amp = 150 - k*34, ys = ridge(BW, baseY, amp, 300 - k*60, Math.random()*9);
+    g.save(); if (HAS_FILTER && k === 0) g.filter = 'blur(1.2px)';
+    ridgePath(g, ys, BW);
+    const mg = g.createLinearGradient(0, baseY - amp, 0, H*.85);
+    mg.addColorStop(0, T.mtn[k]); mg.addColorStop(.7, shade(T.mtn[k], -.08)); mg.addColorStop(1, T.sky[2]);
+    g.fillStyle = mg; g.fill();
+    g.clip();
+    // ánh nắng hắt từ phía mặt trời
+    const lg = g.createLinearGradient(sx - L*700, 0, sx, 0);
+    lg.addColorStop(0, 'rgba(255,240,210,0)'); lg.addColorStop(1, `rgba(255,240,210,${.22 - k*.04})`);
+    g.fillStyle = lg; g.fillRect(0, 0, BW, H);
+    // tuyết phủ đỉnh: mép dưới lượn sóng
+    if (T.sparkle || (k === 0 && !T.stars)) {
+      const cap = baseY - amp*.66;
+      g.fillStyle = T.sparkle ? 'rgba(255,255,255,.85)' : 'rgba(250,252,255,.6)';
+      g.beginPath(); g.moveTo(0, 0);
+      for (let x = 0; x <= BW; x += 6) g.lineTo(x, cap + Math.sin(x/23)*6 + Math.sin(x/7.3)*3);
+      g.lineTo(BW, 0); g.closePath(); g.fill();
+    }
+    // sườn khuất nắng: phần núi không bị phủ khi dịch khối núi về phía mặt trời
+    const sh = shadeCv.getContext('2d'); sh.setTransform(1, 0, 0, 1, 0, 0); sh.clearRect(0, 0, shadeCv.width, shadeCv.height);
+    sh.fillStyle = `rgba(16,24,64,${.26 + k*.05})`; ridgePath(sh, ys, BW); sh.fill();
+    sh.globalCompositeOperation = 'destination-out'; sh.translate(L*26, 10); ridgePath(sh, ys, BW); sh.fill(); sh.globalCompositeOperation = 'source-over';
+    if (HAS_FILTER) g.filter = 'blur(1.5px)';
+    g.drawImage(shadeCv, 0, 0, BW, H); g.filter = 'none';
+    g.restore();
+    // vành sáng trên sống núi
+    g.save(); g.strokeStyle = `rgba(255,246,220,${.35 - k*.06})`; g.lineWidth = 1.2; g.beginPath();
+    ys.forEach((y, i) => { const s = (ys[Math.min(ys.length - 1, i + 1)] - y)*L; if (s < 0) { g.moveTo(i*3, y); g.lineTo(i*3 + 3, ys[Math.min(ys.length - 1, i + 1)]); } });
+    g.stroke(); g.restore();
+    // sương mù chân núi
+    const fog = g.createLinearGradient(0, baseY - amp*.25, 0, baseY + 70);
+    fog.addColorStop(0, rgba(sk2, 0)); fog.addColorStop(1, rgba(sk2, .55 - k*.1));
+    g.fillStyle = fog; g.fillRect(0, baseY - amp*.25, BW, 95 + amp*.25);
+  }
+  renderMid();
+  renderRays();
+  // chỉnh màu theo bản đồ, áp sẵn vào lớp nền (không tốn chi phí mỗi khung hình)
+  gradeGrad = null;
+  [[g, 0], [midCanvas.getContext('2d'), 1]].forEach(([c, keepAlpha]) => {
+    c.save(); c.setTransform(DPR, 0, 0, DPR, 0, 0); c.globalCompositeOperation = keepAlpha ? 'source-atop' : 'soft-light';
+    c.fillStyle = makeGrade(c, keepAlpha); c.fillRect(0, 0, BW, H); c.restore();
   });
 }
+// Lớp đồi cây ở giữa (parallax riêng)
+const midCanvas = document.createElement('canvas'); midCanvas.width = (W + 240)*DPR; midCanvas.height = H*DPR;
+function renderMid() {
+  const g = midCanvas.getContext('2d'), T = theme, BW = W + 240, L = lightDir();
+  g.setTransform(DPR, 0, 0, DPR, 0, 0); g.clearRect(0, 0, BW, H);
+  const baseY = H*.66, ys = ridge(BW, baseY, 70, 210, Math.random()*9);
+  const top = T.top[1], dk = [top[0]*.45, top[1]*.5, top[2]*.6], sk2 = hexRgb(T.sky[2]);
+  const hill = [(dk[0] + sk2[0]*.6)/1.6, (dk[1] + sk2[1]*.6)/1.6, (dk[2] + sk2[2]*.6)/1.6];
+  ridgePath(g, ys, BW);
+  const hg = g.createLinearGradient(0, baseY - 70, 0, H);
+  hg.addColorStop(0, rgba(hill, 1)); hg.addColorStop(1, rgba(hill.map(v => v*.7), 1));
+  g.fillStyle = hg; g.fill();
+  // cây dọc sống đồi
+  for (let i = 4; i < ys.length - 4; i += 2 + (Math.random()*4|0)) {
+    if (Math.random() < .35) continue;
+    const x = i*3, y = ys[i] + 3, s = .7 + Math.random()*.7;
+    tree(g, x, y, s, hill, L, T);
+  }
+  // sương phủ chân đồi để tách lớp với địa hình
+  const fog = g.createLinearGradient(0, baseY - 40, 0, H*.9);
+  fog.addColorStop(0, rgba(sk2, 0)); fog.addColorStop(1, rgba(sk2, .5));
+  g.fillStyle = fog; g.fillRect(0, baseY - 40, BW, H);
+}
+function tree(g, x, y, s, base, L, T) {
+  const dark = rgba(base.map(v => v*.78), 1), lit = rgba(base.map(v => Math.min(255, v*1.25 + 18)), 1);
+  if (T.sparkle || (T === THEMES.meadow && Math.random() < .3)) { // cây thông
+    const h = 34*s, w = 12*s;
+    for (let k = 0; k < 3; k++) {
+      const ty = y - h + k*h*.28, tw = w*(.55 + k*.3);
+      g.fillStyle = dark; g.beginPath(); g.moveTo(x, ty); g.lineTo(x - tw, ty + h*.42); g.lineTo(x + tw, ty + h*.42); g.closePath(); g.fill();
+      g.fillStyle = lit; g.beginPath(); g.moveTo(x, ty); g.lineTo(x + L*tw, ty + h*.42); g.lineTo(x + L*tw*.2, ty + h*.42); g.closePath(); g.fill();
+      if (T.sparkle) { g.fillStyle = 'rgba(255,255,255,.85)'; g.beginPath(); g.moveTo(x, ty); g.lineTo(x - tw*.5, ty + h*.2); g.lineTo(x + tw*.5, ty + h*.2); g.closePath(); g.fill(); }
+    }
+  } else if (T.stars) { // cây bách thon dưới hoàng hôn
+    const h = 40*s, w = 6*s;
+    g.fillStyle = dark; g.beginPath(); g.ellipse(x, y - h/2, w, h/2, 0, 0, Math.PI*2); g.fill();
+    g.fillStyle = 'rgba(255,170,110,.45)'; g.beginPath(); g.ellipse(x + L*w*.45, y - h/2, w*.45, h/2*.92, 0, 0, Math.PI*2); g.fill();
+  } else { // cây tán tròn
+    const r = 11*s;
+    g.fillStyle = dark; g.fillRect(x - 1.2*s, y - r, 2.4*s, r);
+    [[0, -r*1.5, r], [-r*.7, -r*1.05, r*.75], [r*.7, -r*1.05, r*.75]].forEach(([dx, dy, rr2]) => {
+      g.fillStyle = dark; g.beginPath(); g.arc(x + dx, y + dy, rr2, 0, Math.PI*2); g.fill();
+      g.fillStyle = lit; g.beginPath(); g.arc(x + dx + L*rr2*.35, y + dy - rr2*.3, rr2*.55, 0, Math.PI*2); g.fill();
+    });
+  }
+}
+// Tia nắng xuyên khung cảnh (vẽ đè sau cùng, chế độ screen)
+const rayCanvas = document.createElement('canvas'); rayCanvas.width = W/2; rayCanvas.height = H/2;
+function renderRays() {
+  const g = rayCanvas.getContext('2d'), T = theme, sx = T.sunPos[0]/2, sy = T.sunPos[1]/2;
+  g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, W/2, H/2);
+  if (HAS_FILTER) g.filter = 'blur(6px)';
+  const col = T.stars ? '255,170,110' : '255,244,214';
+  for (let i = 0; i < 9; i++) {
+    const a = Math.PI*.5 + (Math.random() - .5)*2.2, len = 700, wd = .04 + Math.random()*.07;
+    const gr = g.createRadialGradient(sx, sy, 0, sx, sy, len);
+    gr.addColorStop(0, `rgba(${col},${.22 + Math.random()*.12})`); gr.addColorStop(1, `rgba(${col},0)`);
+    g.fillStyle = gr; g.beginPath(); g.moveTo(sx, sy);
+    g.lineTo(sx + Math.cos(a - wd)*len, sy + Math.sin(a - wd)*len); g.lineTo(sx + Math.cos(a + wd)*len, sy + Math.sin(a + wd)*len); g.fill();
+  }
+  g.filter = 'none';
+  // tia nắng nhạt dần, không chiếu xuống lòng đất
+  g.globalCompositeOperation = 'destination-in';
+  const fade = g.createLinearGradient(0, 0, 0, H/2); fade.addColorStop(0, '#000'); fade.addColorStop(.45, 'rgba(0,0,0,.6)'); fade.addColorStop(.7, 'rgba(0,0,0,0)');
+  g.fillStyle = fade; g.fillRect(0, 0, W/2, H/2); g.globalCompositeOperation = 'source-over';
+}
+let gradeGrad = null;
+const MID_Y = Math.round(H*.4);
+// gradient chỉnh màu; tint=true: bản nhẹ dùng phủ đè (source-atop) cho lớp có nền trong suốt
+function makeGrade(c = ctx, tint) {
+  const T = theme, g = c.createLinearGradient(0, 0, 0, H), m = tint ? .3 : 1;
+  const st = (p, rgb, a) => g.addColorStop(p, `rgba(${rgb},${(a*m).toFixed(3)})`);
+  if (T.stars) { st(0, '150,110,220', .25); st(.55, '255,170,110', .35); st(1, '90,40,80', .3); }
+  else if (T.sparkle) { st(0, '190,215,255', .35); st(1, '60,90,150', .35); }
+  else { st(0, '255,240,200', .4); st(.6, '255,230,180', .22); st(1, '30,40,80', .4); }
+  return g;
+}
+// Mây khối: mỗi đám mây vẽ sẵn ra canvas riêng, có mặt sáng/mặt tối
+function makeClouds() {
+  const T = theme, L = lightDir();
+  clouds = Array.from({length: 9}, () => {
+    const s = .55 + Math.random()*.95, n = 11 + (Math.random()*5|0), puffs = [];
+    for (let i = 0; i < n; i++) { const k = i/(n - 1) - .5; puffs.push({dx:k*120*s + (Math.random() - .5)*18*s, dy:-(1 - Math.abs(k)*1.7)*20*s - Math.random()*12*s, r:(11 + Math.random()*11)*s*(1 - Math.abs(k)*.55)}); }
+    for (let i = 0; i < 5; i++) puffs.push({dx:(Math.random() - .5)*80*s, dy:-3*s, r:10*s}); // đáy liền khối
+    const cw = Math.ceil(170*s + 60), ch = Math.ceil(90*s + 40), c = document.createElement('canvas');
+    c.width = cw*DPR; c.height = ch*DPR;
+    const g = c.getContext('2d'); g.scale(DPR, DPR); const ox = cw/2, oy = ch*.68;
+    if (HAS_FILTER) g.filter = `blur(${(1.2*s + .4).toFixed(1)}px)`;
+    // 1) khối mây liền
+    g.fillStyle = T.cloud[0]; puffs.forEach(p => { g.beginPath(); g.arc(ox + p.dx, oy + p.dy, p.r, 0, Math.PI*2); g.fill(); });
+    g.filter = 'none'; g.globalCompositeOperation = 'source-atop';
+    // 2) mỗi bóng mây có vùng tối nhẹ ở phía khuất nắng -> lộ khối mà không thành "chùm nho"
+    const dk = hexRgb(T.cloud[1]);
+    puffs.forEach(p => {
+      const cx = ox + p.dx - L*p.r*.45, cy = oy + p.dy + p.r*.5, gr = g.createRadialGradient(cx, cy, 0, cx, cy, p.r*1.1);
+      gr.addColorStop(0, rgba(dk, .5)); gr.addColorStop(1, rgba(dk, 0)); g.fillStyle = gr; g.fillRect(cx - p.r*1.1, cy - p.r*1.1, p.r*2.2, p.r*2.2);
+    });
+    // 3) đáy mây phẳng, tối hơn; 4) đỉnh phía mặt trời sáng rực
+    const bg = g.createLinearGradient(0, oy - 18*s, 0, oy + 14*s); bg.addColorStop(0, rgba(dk, 0)); bg.addColorStop(1, T.stars ? 'rgba(110,50,100,.6)' : 'rgba(80,105,160,.5)');
+    g.fillStyle = bg; g.fillRect(0, 0, cw, ch);
+    const hl = g.createRadialGradient(ox + L*cw*.3, oy - 40*s, 0, ox + L*cw*.3, oy - 40*s, cw*.6);
+    hl.addColorStop(0, T.stars ? 'rgba(255,220,170,.75)' : 'rgba(255,255,255,.8)'); hl.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = hl; g.fillRect(0, 0, cw, ch);
+    return {x: Math.random()*(W + 400) - 200, y: 40 + Math.random()*160 + (1 - s)*40, s, v:.03 + s*.05, img:c, cw, ch, ox, oy};
+  }).sort((a, b) => a.s - b.s);
+}
 function genTerrain() {
-  solid = new Uint8Array(W*H); scorch = new Uint8Array(W*H); noiseA = new Float32Array(W*H);
+  solid = new Uint8Array(W*H); scorch = new Uint8Array(W*H); noiseA = new Float32Array(W*H); rockA = new Float32Array(W*H);
   seedI = (Math.random()*1e9) | 0;
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) noiseA[y*W + x] = vnoise(x, y, 26)*.6 + vnoise(x, y, 6)*.4;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const i = y*W + x; noiseA[i] = vnoise(x, y, 26)*.6 + vnoise(x, y, 6)*.4; rockA[i] = vnoise(x + 999, y, 48)*.7 + vnoise(x + 333, y, 17)*.3; }
   const p1 = Math.random()*6, p2 = Math.random()*6, p3 = Math.random()*6;
   for (let x = 0; x < W; x++) {
     const h = H*0.58 + Math.sin(x/180 + p1)*70 + Math.sin(x/70 + p2)*30 + Math.sin(x/23 + p3)*8;
@@ -465,41 +637,81 @@ function genTerrain() {
       for (let y = cy|0; y < cy + depth; y++) solid[y*W + x] = 1;
     }
   }
-  renderTerrain();
+  renderTerrain(true);
 }
-function renderTerrain() {
+// Địa hình 2.5D: frontCv = mặt trước, backCv = mặt trên/vách sau (vẽ lệch lên trên tạo độ dày), shadowCv = bóng đổ lên nền
+const SLAB = 7;
+const frontCv = document.createElement('canvas'); frontCv.width = W; frontCv.height = H; const fctx = frontCv.getContext('2d');
+const backCv = document.createElement('canvas'); backCv.width = W; backCv.height = H; const bctx = backCv.getContext('2d');
+const shadowCv = document.createElement('canvas'); shadowCv.width = W/8; shadowCv.height = H/8; const shctx = shadowCv.getContext('2d');
+let fImg = null, bImg = null, dirtyX0 = W, dirtyX1 = -1;
+function renderTerrain(full) {
   terrainDirty = false;
-  const T = theme, img = tctx.createImageData(W, H), d = img.data, tops = [];
-  for (let x = 0; x < W; x++) {
+  // chỉ vẽ lại dải cột bị thay đổi (sau vụ nổ), trừ khi tạo bản đồ mới
+  let x0 = 0, x1 = W - 1;
+  if (!full && fImg && dirtyX1 >= dirtyX0) { x0 = Math.max(0, dirtyX0 - 24); x1 = Math.min(W - 1, dirtyX1 + 24); }
+  dirtyX0 = W; dirtyX1 = -1;
+  if (!fImg) { fImg = fctx.createImageData(W, H); bImg = bctx.createImageData(W, H); }
+  const T = theme, d = fImg.data, bd = bImg.data, tops = [], LD = lightDir();
+  const air = (x, y) => x < 0 || x >= W || y < 0 || (y < H && !solid[y*W + x]);
+  for (let x = x0; x <= x1; x++) {
     let run = 0;
     for (let y = 0; y < H; y++) {
-      const i = y*W + x;
-      if (!solid[i]) { run = 0; continue; }
+      const i = y*W + x, o = i*4;
+      if (!solid[i]) { run = 0; d[o+3] = 0; bd[o+3] = 0; continue; }
       run++;
-      const n = noiseA[i], o = i*4, sc = scorch[i]/255;
+      const n = noiseA[i], sc = scorch[i]/255;
       let r, g, b;
       if (run <= 8 && sc < .2) {
         const k = run/8, v = (n - .5)*26;
         r = T.top[0][0] + (T.top[1][0] - T.top[0][0])*k + v; g = T.top[0][1] + (T.top[1][1] - T.top[0][1])*k + v; b = T.top[0][2] + (T.top[1][2] - T.top[0][2])*k + v;
         if (run === 1) { r += 25; g += 25; b += 25; tops.push(x, y); }
+        // mặt trên (thấy từ trên xuống): cỏ sáng hơn, vân sọc theo chiều sâu
+        const tv = (n - .5)*34 + (hash(x >> 2, y) - .5)*10;
+        bd[o] = T.top[0][0]*.92 + tv; bd[o+1] = T.top[0][1]*.92 + tv; bd[o+2] = T.top[0][2]*.92 + tv; bd[o+3] = 255;
       } else {
         const dk = Math.min(1, run/260);
         r = T.dirt[0] + (T.deep[0] - T.dirt[0])*dk; g = T.dirt[1] + (T.deep[1] - T.dirt[1])*dk; b = T.dirt[2] + (T.deep[2] - T.dirt[2])*dk;
         if ((y + n*16) % 54 < 4) { r = (r + T.rock[0])/2; g = (g + T.rock[1])/2; b = (b + T.rock[2])/2; }
         const v = (n - .5)*40; r += v; g += v; b += v;
         if (n > .8) { r += 20; g += 20; b += 20; }
+        // sắc độ đất thay đổi trên diện rộng (vỉa sáng/tối), nổi khối theo hướng nắng
+        const rk = rockA[i], j = i + LD*4 - W*4, gl = j >= 0 && j < W*H ? (rk - rockA[j])*90 : 0, tone = (rk - .5)*30 + gl;
+        r += tone; g += tone*.9; b += tone*.8;
+        // bóng râm ngay dưới mép cỏ
+        if (run < 22) { const ao = .62 + (run - 8)/14*.38; r *= ao; g *= ao; b *= ao; }
         if (sc > 0) {
           const k = Math.min(.88, sc);
           r = r*(1 - k) + T.scorch[0]*k; g = g*(1 - k) + T.scorch[1]*k; b = b*(1 - k) + T.scorch[2]*k;
           if (sc > .5 && n > .74) { r += 90*(sc - .4); g += 30*(sc - .4); }
         }
+        // vách sau (thấy qua hố nổ): tối hơn, lạnh hơn vì khuất sáng
+        bd[o] = r*.5; bd[o+1] = g*.52; bd[o+2] = b*.6; bd[o+3] = 255;
       }
-      if ((x > 0 && !solid[i - 1]) || (x < W - 1 && !solid[i + 1]) || (y < H - 1 && !solid[i + W])) { r *= .62; g *= .62; b *= .62; }
-      else if ((x > 1 && !solid[i - 2]) || (x < W - 2 && !solid[i + 2])) { r *= .82; g *= .82; b *= .82; }
+      // Ánh sáng định hướng: cạnh đón nắng vát sáng, cạnh khuất nắng đổ tối, viền ngoài đậm nhẹ
+      if (air(x + LD*2, y - 2) || air(x + LD, y - 1)) { if (run > 2) { r += 34; g += 30; b += 22; } }
+      else if (air(x - LD*2, y + 2) || air(x - LD, y + 1)) { r *= .58; g *= .58; b *= .64; }
+      else if (air(x - LD*4, y + 4) || air(x, y + 3)) { r *= .8; g *= .8; b *= .84; }
+      if (air(x - 1, y) || air(x + 1, y) || air(x, y + 1)) { r *= .72; g *= .72; b *= .74; }
       d[o] = r; d[o+1] = g; d[o+2] = b; d[o+3] = 255;
     }
   }
-  tctx.putImageData(img, 0, 0);
+  const cw = x1 - x0 + 1;
+  fctx.putImageData(fImg, 0, 0, x0, 0, cw, H); bctx.putImageData(bImg, 0, 0, x0, 0, cw, H);
+  // Bóng đổ của địa hình lên nền: vẽ ở 1/8 độ phân giải, khi phóng to tự nhoè mềm
+  shctx.clearRect(0, 0, W/8, H/8); shctx.globalCompositeOperation = 'source-over';
+  shctx.drawImage(frontCv, 0, 0, W/8, H/8);
+  shctx.globalCompositeOperation = 'source-in'; shctx.fillStyle = T.stars ? '#1a0c26' : '#0c1a33'; shctx.fillRect(0, 0, W/8, H/8);
+  shctx.globalCompositeOperation = 'source-over';
+  // Ghép: khối dày (mặt trên lùi dần, tối dần) rồi mới tới mặt trước — chỉ trong dải cột vừa đổi
+  tctx.save(); tctx.beginPath(); tctx.rect(x0, 0, cw, H); tctx.clip();
+  tctx.clearRect(x0, 0, cw, H);
+  tctx.globalAlpha = .38; tctx.drawImage(shadowCv, -LD*16, 14, W, H); tctx.globalAlpha = 1;
+  for (let k = SLAB; k >= 1; k--) {
+    tctx.drawImage(backCv, x0, 0, cw, H, x0, -k, cw, H);
+    if (k === SLAB) { tctx.globalCompositeOperation = 'source-atop'; tctx.fillStyle = 'rgba(0,0,0,.18)'; tctx.fillRect(x0, 0, cw, H); tctx.globalCompositeOperation = 'source-over'; }
+  }
+  tctx.drawImage(frontCv, x0, 0, cw, H, x0, 0, cw, H);
   if (T.blade) {
     tctx.strokeStyle = T.blade; tctx.lineWidth = 1.2; tctx.beginPath();
     for (let k = 0; k < tops.length; k += 2) {
@@ -515,6 +727,7 @@ function renderTerrain() {
     }
   }
   if (T.sparkle) { tctx.fillStyle = 'rgba(255,255,255,.9)'; for (let k = 0; k < tops.length; k += 2) if (hash(tops[k], tops[k + 1]*7) > .97) tctx.fillRect(tops[k], tops[k + 1] + 1, 1.5, 1.5); }
+  tctx.restore();
 }
 function isSolid(x, y) { x |= 0; y |= 0; if (x < 0 || x >= W || y < 0 || y >= H) return false; return solid[y*W + x] === 1; }
 function carveRaw(cx, cy, r, sc = 0) {
@@ -532,6 +745,7 @@ function carveRaw(cx, cy, r, sc = 0) {
         if (k > 0) { const v = Math.min(255, (k*k*270 + (noiseA[i] - .5)*60))|0; if (v > scorch[i]) scorch[i] = v; }
       }
     }
+  dirtyX0 = Math.min(dirtyX0, Math.max(0, (cx - R)|0)); dirtyX1 = Math.max(dirtyX1, Math.min(W - 1, (cx + R + 1)|0));
   terrainDirty = true;
 }
 
@@ -728,10 +942,13 @@ function explode(x, y, w, owner, mult) {
   const ice = !!w.freeze;
   booms.push({x, y, r:w.r, t:0, life:28, ice});
   const dc = `rgb(${theme.dirt})`;
+  // cầu lửa nhiều lớp bốc lên
+  for (let i = 0; i < 12 + w.r/5; i++) { const a = Math.random()*Math.PI*2, s = .4 + Math.random()*2.2, d0 = Math.random()*w.r*.35;
+    addP({type:'fire', x:x + Math.cos(a)*d0, y:y + Math.sin(a)*d0, vx:Math.cos(a)*s, vy:Math.sin(a)*s - .7, g:-.02, drag:.9, s:w.r*.2 + Math.random()*w.r*.18, life:20 + Math.random()*18, c: ice ? 'ice' : 'fire'}); }
   for (let i = 0; i < 18 + w.r/2; i++) { const a = Math.random()*Math.PI*2, s = 2 + Math.random()*6;
     addP({type:'spark', x, y, vx:Math.cos(a)*s, vy:Math.sin(a)*s - 1, g:.12, drag:.96, s:2, life:20 + Math.random()*20, c: ice ? '#e6fbff' : '#ffd36b'}); }
   for (let i = 0; i < 10 + w.r/4; i++) addP({type:'debris', x, y, vx:(Math.random() - .5)*9, vy:-Math.random()*8, g:.32, s:2 + Math.random()*3, life:60, c: ice ? '#9fe3f0' : dc, rot:Math.random()*6});
-  for (let i = 0; i < 6 + w.r/8; i++) addP({type:'smoke', x:x + (Math.random() - .5)*w.r, y:y + (Math.random() - .5)*w.r*.6, vx:(Math.random() - .5)*.6, vy:-.4 - Math.random()*.5, s:w.r*.25 + Math.random()*8, life:70 + Math.random()*40, c: ice ? 'rgba(220,245,255,' : 'rgba(90,85,85,'});
+  for (let i = 0; i < 6 + w.r/8; i++) addP({type:'smoke', x:x + (Math.random() - .5)*w.r, y:y + (Math.random() - .5)*w.r*.6, vx:(Math.random() - .5)*.6, vy:-.4 - Math.random()*.5, s:w.r*.25 + Math.random()*8, life:70 + Math.random()*40, c: ice ? 'rgba(220,245,255,' : 'rgba(90,85,85,', fr:true});
   units.forEach(u => {
     if (!u.alive) return;
     const d = Math.hypot(u.x - x, u.y - 10 - y);
@@ -856,7 +1073,7 @@ function update() {
   parts = parts.filter(p => p.t > 0);
   if (parts.length > 900) parts.splice(0, parts.length - 900);
   popups.forEach(p => { p.y -= 0.45; p.t--; }); popups = popups.filter(p => p.t > 0);
-  clouds.forEach(c => { c.x += wind*0.04*c.s + 0.05; if (c.x > W + 160) c.x = -160; if (c.x < -160) c.x = W + 160; });
+  clouds.forEach(c => { c.x += wind*0.04*c.s + c.v; if (c.x > W + 300) c.x = -300; if (c.x < -300) c.x = W + 300; });
   if (banner) banner.t++;
   stepWx();
   if (!ann && annQ.length) { ann = Object.assign(annQ.shift(), {t:0}); SFX.ann(); }
@@ -870,6 +1087,22 @@ function bodyGrad(g, x, y, r, col) {
   const gr = g.createRadialGradient(x - r*.35, y - r*.45, r*.1, x, y, r*1.15);
   gr.addColorStop(0, shade(col, .45)); gr.addColorStop(.55, col); gr.addColorStop(1, shade(col, -.45));
   return gr;
+}
+// Khối 3D cho thân nhân vật: tối dần phía dưới (AO) + vành sáng phía mặt trời + đốm phản quang
+function bodyFx(g, x, y, rx, ry, half) {
+  const L = lightDir();
+  g.save(); g.beginPath();
+  if (half) { g.ellipse(x, y, rx, ry, 0, Math.PI, 0); g.closePath(); } else g.ellipse(x, y, rx, ry, 0, 0, Math.PI*2);
+  g.clip();
+  const ao = g.createLinearGradient(0, y - ry*.2, 0, y + (half ? 0 : ry));
+  ao.addColorStop(0, 'rgba(0,0,20,0)'); ao.addColorStop(1, 'rgba(0,0,20,.38)');
+  g.fillStyle = ao; g.fillRect(x - rx, y - ry, rx*2, ry*2);
+  g.globalCompositeOperation = 'lighter';
+  g.strokeStyle = 'rgba(255,245,220,.55)'; g.lineWidth = 2.4;
+  g.beginPath(); g.ellipse(x - L*1.6, y + 1.2, rx, ry, 0, L > 0 ? -1.25 : Math.PI + .2, L > 0 ? -.2 : Math.PI + 1.25); g.stroke();
+  g.strokeStyle = 'rgba(150,200,255,.28)'; g.lineWidth = 2;
+  g.beginPath(); g.ellipse(x + L*1.4, y - 1, rx, ry, 0, L > 0 ? Math.PI*.55 : .1, L > 0 ? Math.PI*.95 : Math.PI*.45); g.stroke();
+  g.restore();
 }
 function drawBarrel(g, x, y, base, rec) {
   g.save(); g.translate(x, y); g.rotate(-base);
@@ -894,7 +1127,9 @@ function drawChar(g, x, y, ck, col, face, ang, o = {}) {
   const em = o.mood || (blink ? 'blink' : '');
   const base = (face > 0 ? ang : 180 - ang)*Math.PI/180, out = shade(col, -.62);
   g.save(); g.lineJoin = 'round'; g.lineCap = 'round';
-  g.fillStyle = 'rgba(0,0,0,.28)'; g.beginPath(); g.ellipse(x, y + 1, 16, 3.5, 0, 0, Math.PI*2); g.fill();
+  const shg = g.createRadialGradient(x - lightDir()*3, y + 1, 1, x - lightDir()*3, y + 1, 20);
+  shg.addColorStop(0, 'rgba(0,0,10,.45)'); shg.addColorStop(1, 'rgba(0,0,10,0)');
+  g.fillStyle = shg; g.beginPath(); g.ellipse(x - lightDir()*3, y + 1, 21, 5, 0, 0, Math.PI*2); g.fill();
   drawBarrel(g, x, y - 12 + bob, base, rec);
   if (ck === 'turtle') {
     g.fillStyle = '#5aa3b0'; rr(g, x - 12, y - 6, 6, 6, 2); g.fill(); rr(g, x + 6, y - 6, 6, 6, 2); g.fill();
@@ -905,6 +1140,7 @@ function drawChar(g, x, y, ck, col, face, ang, o = {}) {
     const sy = y - 4 + bob;
     g.fillStyle = bodyGrad(g, x, sy - 6, 16, col); g.strokeStyle = out; g.lineWidth = 1.8;
     g.beginPath(); g.ellipse(x, sy, 16, 14, 0, Math.PI, 0); g.closePath(); g.fill(); g.stroke();
+    bodyFx(g, x, sy, 16, 14, true);
     g.strokeStyle = 'rgba(255,255,255,.4)'; g.lineWidth = 1.4; g.beginPath();
     g.moveTo(x - 5, sy); g.lineTo(x - 4, sy - 8); g.lineTo(x + 4, sy - 8); g.lineTo(x + 5, sy);
     g.moveTo(x - 4, sy - 8); g.lineTo(x - 7, sy - 12.5); g.moveTo(x + 4, sy - 8); g.lineTo(x + 7, sy - 12.5);
@@ -925,6 +1161,7 @@ function drawChar(g, x, y, ck, col, face, ang, o = {}) {
       g.strokeStyle = out; g.lineWidth = 1.8;
     }
     g.fillStyle = bodyGrad(g, x, by, rx, col); g.beginPath(); g.ellipse(x, by, rx, ry, 0, 0, Math.PI*2); g.fill(); g.stroke();
+    bodyFx(g, x, by, rx - .8, ry - .8);
     g.fillStyle = 'rgba(255,255,255,.16)'; g.beginPath(); g.ellipse(x + face*2, by + 4.5, rx*.55, ry*.33, 0, 0, Math.PI*2); g.fill();
     g.fillStyle = 'rgba(255,255,255,.5)'; g.beginPath(); g.ellipse(x - face*5, by - 6, 4, 2, -.5*face, 0, Math.PI*2); g.fill();
     if (ck === 'ox') {
@@ -1048,6 +1285,12 @@ function drawUnit(u) {
     return;
   }
   const col = TEAM_COL[u.team];
+  // quầng màu đội dưới chân: dễ nhận ra phe trên nền nhiều chi tiết
+  ctx.globalCompositeOperation = 'lighter';
+  const tg = ctx.createRadialGradient(u.x, u.y - 2, 2, u.x, u.y - 2, 26);
+  tg.addColorStop(0, u.team ? 'rgba(61,139,229,.35)' : 'rgba(229,83,61,.35)'); tg.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = tg; ctx.beginPath(); ctx.ellipse(u.x, u.y - 2, 26, 9, 0, 0, Math.PI*2); ctx.fill();
+  ctx.globalCompositeOperation = 'source-over';
   drawChar(ctx, u.x, u.y, u.ck, col, u.face, u.angle, {t:frame, ph:u.ph, recoil:u.recoil, hat:u.hat, mood: u.flash > 0 ? 'hurt' : u.happyT > 0 ? 'happy' : ''});
   if (u.flash > 0) { ctx.fillStyle = `rgba(255,255,255,${u.flash/10*.7})`; ctx.beginPath(); ctx.ellipse(u.x, u.y - 10, 17, 13, 0, 0, Math.PI*2); ctx.fill(); }
   if (u.shield) {
@@ -1092,8 +1335,14 @@ function drawUnit(u) {
 function drawParts(front) {
   for (const p of parts) {
     const a = Math.max(0, p.t/p.life);
-    if (p.type === 'smoke') { if (front) continue; const sg = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.s*1.4); sg.addColorStop(0, p.c + (a*.5).toFixed(3) + ')'); sg.addColorStop(.55, p.c + (a*.28).toFixed(3) + ')'); sg.addColorStop(1, p.c + '0)'); ctx.fillStyle = sg; ctx.beginPath(); ctx.arc(p.x, p.y, p.s*1.4, 0, Math.PI*2); ctx.fill(); continue; }
+    if (p.type === 'smoke') { if (!!p.fr !== front) continue; const r = p.s*1.5; ctx.globalAlpha = p.fr ? a*a*.7 : Math.min(1, a*.75); ctx.drawImage(puffSprite(p.c), p.x - r, p.y - r, r*2, r*2); ctx.globalAlpha = 1; continue; }
     if (!front) continue;
+    if (p.type === 'fire') {
+      const k = 1 - a, r = p.s*(.7 + k*1.3);
+      ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = Math.min(1, a*1.5);
+      ctx.drawImage(fireSprite(p.c === 'ice' ? 3 : k < .25 ? 0 : k < .55 ? 1 : 2), p.x - r, p.y - r, r*2, r*2);
+      ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; continue;
+    }
     if (p.type === 'spark') {
       ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = p.c; ctx.globalAlpha = a; ctx.lineWidth = p.s;
       ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - p.vx*2, p.y - p.vy*2); ctx.stroke();
@@ -1111,8 +1360,42 @@ function drawParts(front) {
     } else { ctx.globalAlpha = a; ctx.fillStyle = p.c; ctx.beginPath(); ctx.arc(p.x, p.y, p.s, 0, Math.PI*2); ctx.fill(); ctx.globalAlpha = 1; }
   }
 }
+// Sprite khói khối (sáng trên, tối dưới) và sprite lửa — vẽ sẵn một lần, dùng lại cho mọi hạt
+const puffCache = {}, fireCache = [];
+function puffSprite(c) {
+  if (puffCache[c]) return puffCache[c];
+  const s = 64, cv2 = document.createElement('canvas'); cv2.width = cv2.height = s; const g = cv2.getContext('2d');
+  for (let i = 0; i < 5; i++) {
+    const px = s/2 + (Math.random() - .5)*16, py = s/2 + (Math.random() - .5)*12, r = 14 + Math.random()*10;
+    const gr = g.createRadialGradient(px, py, 0, px, py, r);
+    gr.addColorStop(0, c + '.9)'); gr.addColorStop(.6, c + '.55)'); gr.addColorStop(1, c + '0)');
+    g.fillStyle = gr; g.fillRect(0, 0, s, s);
+  }
+  g.globalCompositeOperation = 'source-atop';
+  const lg = g.createLinearGradient(0, 8, 0, s - 8);
+  lg.addColorStop(0, 'rgba(255,250,235,.25)'); lg.addColorStop(.55, 'rgba(255,255,255,0)'); lg.addColorStop(1, 'rgba(10,10,25,.4)');
+  g.fillStyle = lg; g.fillRect(0, 0, s, s);
+  return puffCache[c] = cv2;
+}
+function fireSprite(i) {
+  if (fireCache[i]) return fireCache[i];
+  const cols = [['255,255,235', '255,220,120'], ['255,200,90', '255,110,30'], ['230,90,30', '120,30,10'], ['240,255,255', '120,210,255']][i];
+  const s = 64, cv2 = document.createElement('canvas'); cv2.width = cv2.height = s; const g = cv2.getContext('2d');
+  const gr = g.createRadialGradient(s/2, s/2, 0, s/2, s/2, s/2);
+  gr.addColorStop(0, `rgba(${cols[0]},1)`); gr.addColorStop(.45, `rgba(${cols[1]},.7)`); gr.addColorStop(1, `rgba(${cols[1]},0)`);
+  g.fillStyle = gr; g.fillRect(0, 0, s, s);
+  return fireCache[i] = cv2;
+}
 function drawBooms() {
   ctx.globalCompositeOperation = 'lighter';
+  // ánh chớp rọi sáng vùng xung quanh vụ nổ
+  booms.forEach(b => {
+    if (b.muzzle) return;
+    const k = b.t/b.life, R = b.r*4, a = (1 - k)*(1 - k)*.32;
+    const gr = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, R);
+    gr.addColorStop(0, b.ice ? `rgba(170,230,255,${a})` : b.tele ? `rgba(200,150,255,${a})` : `rgba(255,190,100,${a})`); gr.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = gr; ctx.fillRect(b.x - R, b.y - R, R*2, R*2);
+  });
   booms.forEach(b => {
     const k = b.t/b.life, R = b.r*(.5 + k*1.1);
     const gr = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, R*1.3);
@@ -1122,8 +1405,10 @@ function drawBooms() {
     ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(b.x, b.y, R*1.3, 0, Math.PI*2); ctx.fill();
   });
   ctx.globalCompositeOperation = 'source-over';
-  booms.forEach(b => { if (b.muzzle) return; const k = b.t/b.life;
-    ctx.strokeStyle = `rgba(255,255,255,${(1 - k)*.6})`; ctx.lineWidth = 3*(1 - k) + .5; ctx.beginPath(); ctx.arc(b.x, b.y, b.r*(.6 + k*1.6), 0, Math.PI*2); ctx.stroke(); });
+  // sóng xung kích: vòng sáng + vòng tối bên trong tạo cảm giác méo không khí
+  booms.forEach(b => { if (b.muzzle) return; const k = b.t/b.life, R = b.r*(.6 + k*1.8);
+    ctx.strokeStyle = `rgba(0,0,20,${(1 - k)*.18})`; ctx.lineWidth = 6*(1 - k) + 1; ctx.beginPath(); ctx.arc(b.x, b.y, R - 4, 0, Math.PI*2); ctx.stroke();
+    ctx.strokeStyle = `rgba(255,255,255,${(1 - k)*.7})`; ctx.lineWidth = 3*(1 - k) + .5; ctx.beginPath(); ctx.arc(b.x, b.y, R, 0, Math.PI*2); ctx.stroke(); });
 }
 function drawProjs() {
   projs.forEach(p => {
@@ -1156,6 +1441,15 @@ function drawWater() {
   ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.lineWidth = 1.5; ctx.beginPath();
   for (let x = 0; x <= W; x += 10) { const y = WATER + Math.sin(x/38 + frame*.04)*3 + Math.sin(x/13 + frame*.07)*1.2; x ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
   ctx.stroke();
+  // ánh nắng lấp lánh trên mặt nước, dày hơn ở phía mặt trời
+  ctx.globalCompositeOperation = 'lighter';
+  for (let x = 6; x < W; x += 23) {
+    const a = Math.sin(frame*.06 + x*1.7)*.5 + .5, near = 1 - Math.min(1, Math.abs(x - T.sunPos[0])/700);
+    if (a < .55) continue;
+    ctx.fillStyle = `rgba(255,250,225,${((a - .55)*1.6*(.35 + near*.65)).toFixed(3)})`;
+    ctx.fillRect(x + Math.sin(frame*.02 + x)*6, WATER + 4 + (x*7 % 9), 6 + near*8, 1.4);
+  }
+  ctx.globalCompositeOperation = 'source-over';
 }
 function drawPopups() {
   ctx.textAlign = 'center';
@@ -1168,25 +1462,30 @@ function drawPopups() {
     ctx.restore();
   });
 }
-function drawClouds() {
-  const T = theme;
-  clouds.forEach(c => {
-    c.puffs.forEach(p => {
-      const gr = ctx.createLinearGradient(0, c.y + p.dy - p.r, 0, c.y + p.dy + p.r);
-      gr.addColorStop(0, T.cloud[0]); gr.addColorStop(1, T.cloud[1]);
-      ctx.fillStyle = gr; ctx.globalAlpha = .9; ctx.beginPath(); ctx.arc(c.x + p.dx, c.y + p.dy, p.r, 0, Math.PI*2); ctx.fill();
-    });
-    ctx.globalAlpha = 1;
-  });
+function drawClouds(far) {
+  for (const c of clouds) {
+    if ((c.s < .9) !== far) continue;
+    ctx.globalAlpha = far ? .78 : .95;
+    ctx.drawImage(c.img, c.x - c.ox, c.y - c.oy, c.cw, c.ch);
+  }
+  ctx.globalAlpha = 1;
 }
 
 // ================= HUD =================
 function panel(x, y, w, h, r = 14) {
+  // kính mờ: bóng đổ mềm, nền trong suốt nhẹ, viền sáng phía trên, ánh phản chiếu chéo
+  ctx.fillStyle = 'rgba(0,0,12,.16)'; rr(ctx, x - 2, y + 2, w + 4, h + 6, r + 3); ctx.fill();
+  ctx.fillStyle = 'rgba(0,0,12,.2)'; rr(ctx, x, y + 3, w, h + 2, r); ctx.fill();
   const gr = ctx.createLinearGradient(0, y, 0, y + h);
-  gr.addColorStop(0, 'rgba(30,44,78,.9)'); gr.addColorStop(1, 'rgba(10,15,32,.93)');
+  gr.addColorStop(0, 'rgba(38,56,98,.84)'); gr.addColorStop(1, 'rgba(10,15,34,.9)');
   ctx.fillStyle = gr; rr(ctx, x, y, w, h, r); ctx.fill();
-  ctx.strokeStyle = 'rgba(150,190,255,.3)'; ctx.lineWidth = 1.5; ctx.stroke();
-  ctx.strokeStyle = 'rgba(255,255,255,.07)'; rr(ctx, x + 3, y + 3, w - 6, h*.45, r - 3); ctx.stroke();
+  ctx.save(); rr(ctx, x, y, w, h, r); ctx.clip();
+  const sh = ctx.createLinearGradient(x, y, x + w*.6, y + h);
+  sh.addColorStop(0, 'rgba(255,255,255,.10)'); sh.addColorStop(.35, 'rgba(255,255,255,.02)'); sh.addColorStop(.36, 'rgba(255,255,255,0)');
+  ctx.fillStyle = sh; ctx.fillRect(x, y, w, h); ctx.restore();
+  const bd = ctx.createLinearGradient(0, y, 0, y + h);
+  bd.addColorStop(0, 'rgba(200,225,255,.5)'); bd.addColorStop(1, 'rgba(120,160,240,.15)');
+  ctx.strokeStyle = bd; ctx.lineWidth = 1.5; rr(ctx, x, y, w, h, r); ctx.stroke();
 }
 function bar(x, y, w, h, frac, c1, c2) {
   ctx.fillStyle = 'rgba(0,0,0,.5)'; rr(ctx, x, y, w, h, h/2); ctx.fill();
@@ -1374,9 +1673,15 @@ function draw() {
   // Nền parallax
   ctx.save();
   ctx.translate(W/2, H/2); ctx.scale(1 + (cam.z - 1)*.3, 1 + (cam.z - 1)*.3);
-  ctx.translate(-W/2 - (cam.x - W/2)*.2 + sx*.3, -H/2 - (cam.y - H/2)*.2);
+  ctx.translate(-W/2 - (cam.x - W/2)*.12 + sx*.2, -H/2 - (cam.y - H/2)*.12);
   ctx.drawImage(bgCanvas, -120, 0, W + 240, H);
-  ctx.translate(-(cam.x - W/2)*.3, 0); drawClouds();
+  ctx.translate(-(cam.x - W/2)*.1, 0); drawClouds(true);
+  ctx.restore();
+  ctx.save();
+  ctx.translate(W/2, H/2); ctx.scale(1 + (cam.z - 1)*.55, 1 + (cam.z - 1)*.55);
+  ctx.translate(-W/2 - (cam.x - W/2)*.38 + sx*.5, -H/2 - (cam.y - H/2)*.38);
+  drawClouds(false);
+  ctx.drawImage(midCanvas, 0, MID_Y*DPR, midCanvas.width, midCanvas.height - MID_Y*DPR, -120, MID_Y, W + 240, H - MID_Y);
   ctx.restore();
   // Thế giới
   ctx.save();
@@ -1386,8 +1691,12 @@ function draw() {
   units.forEach(drawUnit);
   drawProjs(); drawBooms(); drawParts(true); drawWx(); drawWater(); drawPopups();
   ctx.restore();
+  // Hậu kỳ: tia nắng, chỉnh màu theo bản đồ, viền tối
+  ctx.globalCompositeOperation = 'screen'; ctx.globalAlpha = .55 + Math.sin(frame*.01)*.12;
+  ctx.drawImage(rayCanvas, 0, 0, W/2, H*.36, 0, 0, W, H*.72);
+  ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
   const vg = ctx.createRadialGradient(W/2, H/2, H*.45, W/2, H/2, H*1.05);
-  vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,10,.35)');
+  vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,10,.38)');
   ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
   if (slowT > 0) { ctx.fillStyle = `rgba(255,240,220,${Math.min(.12, slowT/300)})`; ctx.fillRect(0, 0, W, H); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, 26); ctx.fillRect(0, H - 26, W, 26); }
   if (!demo) {
@@ -1656,12 +1965,19 @@ function drawMenuCanvases() {
   const teamCol = TEAM_COL[activeSlot[0] === 'r' ? 0 : 1];
   cardCanvases.forEach(([c, k], idx) => {
     const g = c.getContext('2d'); g.setTransform(2, 0, 0, 2, 0, 0);
-    const bg = g.createLinearGradient(0, 0, 0, 120); bg.addColorStop(0, '#1d3466'); bg.addColorStop(1, '#0d1630');
+    const bg = g.createLinearGradient(0, 0, 0, 120); bg.addColorStop(0, '#16295a'); bg.addColorStop(.7, '#2b4f92'); bg.addColorStop(1, '#4a73b8');
     g.fillStyle = bg; g.fillRect(0, 0, 230, 120);
-    const gl = g.createRadialGradient(115, 70, 5, 115, 70, 90); gl.addColorStop(0, shade(CHARS[k].acc, -.1)); gl.addColorStop(1, 'rgba(0,0,0,0)');
-    g.globalAlpha = .55; g.fillStyle = gl; g.fillRect(0, 0, 230, 120); g.globalAlpha = 1;
-    g.fillStyle = '#2f6b3a'; g.beginPath(); g.ellipse(115, 128, 150, 30, 0, 0, Math.PI*2); g.fill();
-    g.fillStyle = '#4fae52'; g.beginPath(); g.ellipse(115, 124, 150, 24, 0, Math.PI, 0); g.fill();
+    const gl = g.createRadialGradient(150, 55, 4, 150, 55, 110); gl.addColorStop(0, shade(CHARS[k].acc, .1)); gl.addColorStop(1, 'rgba(0,0,0,0)');
+    g.globalAlpha = .5; g.fillStyle = gl; g.fillRect(0, 0, 230, 120); g.globalAlpha = 1;
+    // dãy núi mờ phía xa
+    g.fillStyle = 'rgba(150,180,230,.25)'; g.beginPath(); g.moveTo(0, 96);
+    for (let x = 0; x <= 230; x += 10) g.lineTo(x, 80 - Math.abs(Math.sin(x/37 + idx))*22 - Math.sin(x/13)*3);
+    g.lineTo(230, 120); g.lineTo(0, 120); g.fill();
+    // bệ cỏ 2.5D: mặt trước tối, mặt trên sáng, vành sáng mép
+    g.fillStyle = '#24502c'; g.beginPath(); g.ellipse(115, 116, 120, 26, 0, 0, Math.PI*2); g.fill();
+    const tp = g.createLinearGradient(0, 96, 0, 118); tp.addColorStop(0, '#7fd15e'); tp.addColorStop(1, '#3f8f3f');
+    g.fillStyle = tp; g.beginPath(); g.ellipse(115, 110, 120, 20, 0, 0, Math.PI*2); g.fill();
+    g.strokeStyle = 'rgba(220,255,190,.55)'; g.lineWidth = 1.2; g.beginPath(); g.ellipse(115, 110, 120, 20, 0, Math.PI*1.05, Math.PI*1.95); g.stroke();
     g.save(); g.translate(115, 102); g.scale(2.8, 2.8); drawChar(g, 0, 0, k, teamCol, 1, 40, {t:frame, ph:idx*1.7}); g.restore();
   });
   SLOTS.forEach(s => {
