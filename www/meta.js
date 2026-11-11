@@ -293,7 +293,7 @@
     return lastRes = {won, coins, gems, xp, stars, newStars, chest, stage:cfg.stage, doubled:false};
   }
   function renderResult(box, res) {
-    if (res.pvp) { box.innerHTML = ''; return; }
+    if (res.pvp) { box.innerHTML = ''; $('again').textContent = '🔁 Đấu lại'; return; }
     let h = '';
     if (res.stage) h += `<div class="stars">${[1, 2, 3].map(i => i <= res.stars ? `<b style="animation-delay:${i*.18}s">★</b>` : '☆').join('')}</div>`;
     h += `<div class="rw">${rwTxt(res).map(t => `<span>${t}</span>`).join('')}${res.chest ? `<span>🎁 Rương: ${rwTxt(res.chest).join(' ')}</span>` : ''}</div>`;
