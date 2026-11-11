@@ -1,7 +1,7 @@
 {
   "name": "Pháo Thủ Mây",
   "short_name": "Pháo Thủ Mây",
-  "description": "Game bắn pháo theo lượt 2 đấu 2 với chiến dịch 30 màn, 4 nhân vật, siêu đạn, gió và địa hình phá huỷ được.",
+  "description": "Game bắn pháo theo lượt 2 đấu 2 với chiến dịch 30 màn, 5 nhân vật, siêu đạn, gió và địa hình phá huỷ được.",
   "lang": "vi",
   "start_url": "./index.html",
   "scope": "./",

@@ -15,7 +15,7 @@
 
 **Tên (≤30 ký tự):** Pháo Thủ Mây: Bắn Pháo Lượt
 
-**Mô tả ngắn (≤80 ký tự):** Ngắm, canh gió, khai hỏa! Đấu pháo theo lượt 2v2 với 4 pháo thủ siêu dễ thương.
+**Mô tả ngắn (≤80 ký tự):** Ngắm, canh gió, khai hỏa! Đấu pháo theo lượt 2v2 với 5 pháo thủ siêu dễ thương.
 
 **Mô tả đầy đủ:**
 
@@ -27,11 +27,12 @@ Kéo ngón tay để ngắm, giữ nút BẮN để nạp lực. Gió thay đổ
 💥 ĐỊA HÌNH PHÁ HỦY ĐƯỢC
 Mỗi vụ nổ khoét hố trên mặt đất. Bắn sập chỗ đứng để đẩy đối thủ rơi xuống nước, hoặc khoan xuyên đồi để đánh kẻ đang núp.
 
-🐂 4 PHÁO THỦ, 4 LỐI CHƠI
+🐂 5 PHÁO THỦ, 5 LỐI CHƠI
 • Bò Thép – trâu bò, đạn khoan xuyên đất, siêu đạn Búa Trời.
 • Chim Gió – gần như miễn nhiễm với gió, Mưa lông 5 tia.
 • Ếch Lửa – lựu đạn nảy và Mưa lửa vây khốn đối thủ.
 • Rùa Băng – Bom lún khoét hố sâu, Băng giá khiến địch mất lượt.
+• Mèo Sấm – Cầu sét lan sang kẻ đứng gần, Sóng đẩy hất địch xuống nước, Bão Sét từ trời.
 
 ⚔️ CHIẾN DỊCH 30 MÀN
 Ba chương Đồng cỏ, Hoàng hôn, Băng tuyết với màn trùm cuối chương. Mỗi màn đạt tối đa 3 sao.
