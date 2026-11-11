@@ -257,7 +257,7 @@
       <div><b class="k">🎯</b><span><b>Ngắm:</b> kéo ngón tay/chuột trên màn chơi, hoặc dùng phím ▲ ▼. Mỗi nhân vật có giới hạn góc riêng.</span></div>
       <div><b class="k">💪</b><span><b>Bắn:</b> giữ nút BẮN (hoặc Space) để nạp lực, thả ra để bắn. Vạch trắng trên thanh lực là lực phát trước.</span></div>
       <div><b class="k">🌬️</b><span><b>Gió:</b> mũi tên ở giữa phía trên cho biết hướng và sức gió. Gió đẩy đạn lệch đi!</span></div>
-      <div><b class="k">⭐</b><span><b>Siêu đạn:</b> gây hoặc nhận sát thương để nạp thanh Siêu, đầy thì bấm 3 để tung chiêu.</span></div></div>`,
+      <div><b class="k">⭐</b><span><b>POW:</b> gây/nhận sát thương và mỗi lượt đều nạp thanh POW. Đầy thì chọn: bấm 3 tung Siêu đạn, hoặc bấm nút POW để đạn lượt đó mạnh ×1.5, nổ to hơn.</span></div></div>`,
       [['Vào trận!', () => { S.tutorial = true; save(); go(); }]]);
   }
 

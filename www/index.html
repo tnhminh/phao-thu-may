@@ -120,13 +120,14 @@ canvas#c{cursor:crosshair}
         <button data-k="ArrowRight" aria-label="Đi sang phải"><svg viewBox="0 0 24 24"><path class="ch" d="M9 5 L16 12 L9 19"/></svg><kbd class="kh">→</kbd></button>
       </div>
       <button class="tfire" data-k=" " aria-label="Giữ để nạp lực, thả để bắn"><i class="ring"></i><b>BẮN</b><small class="sub">giữ để nạp</small><kbd class="kh">Space</kbd></button>
+      <button class="tpow" id="powBtn" aria-label="Kích POW"><i class="pring"></i><b>POW</b><small class="pv">0%</small><kbd class="kh">P</kbd></button>
       <div class="titems"></div>
       <div class="tsys"><button id="pauseBtn" title="Tạm dừng (Esc)" aria-label="Tạm dừng">❚❚</button><button id="mute" title="Tắt/bật tiếng" aria-label="Tắt/bật tiếng">🔊</button><button id="fs" title="Toàn màn hình" aria-label="Toàn màn hình">⛶</button></div>
     </div></div>
   <details id="help"><summary>Hướng dẫn chơi</summary>
     Kéo chuột / vuốt ngón tay trên màn chơi để ngắm nhanh · Bấm thẳng vào thẻ vũ khí trong khung để đổi đạn · Esc để tạm dừng<br>
     ◀ ▶ di chuyển (tốn nhiên liệu) · ▲ ▼ chỉnh góc trong giới hạn của nhân vật · Giữ SPACE nạp lực, thả để bắn<br>
-    1 Đạn cơ bản · 2 Chiêu riêng (có hồi chiêu) · 3 SIÊU ĐẠN khi thanh Siêu đầy (tích bằng gây/nhận sát thương)<br>
+    1 Đạn cơ bản · 2 Chiêu riêng (có hồi chiêu) · 3 SIÊU ĐẠN hoặc nút POW (phím P) khi thanh POW đầy — POW tích bằng gây/nhận sát thương và +6 mỗi lượt; kích POW thì đạn lượt đó mạnh ×1.5, nổ to hơn<br>
     Vật phẩm, mỗi lượt 1 cái: Z Hồi máu · X Bắn 2 lần · C Dịch chuyển · V Khiên · B Tăng sát thương<br>
     Vạch trắng trên thanh lực là lực của phát bắn trước. Rơi xuống nước là bị loại!
   </details>
@@ -803,7 +804,8 @@ function nextTurn() {
   if (!units[turnIdx].alive) turnIdx = units.findIndex(u => u.alive);
   cur = units[turnIdx];
   cur.fuel = 100; cur.shield = false; cur.cd = cur.cd.map(c => Math.max(0, c - 1));
-  turnFx = {item:false, shots:1, tele:false, mult:1};
+  turnFx = {item:false, shots:1, tele:false, mult:1, pow:false};
+  cur.gauge = Math.min(100, cur.gauge + POW_TURN);
   wind = Math.round((Math.random()*2 - 1)*windMax);
   banner = {t:0, text:'LƯỢT CỦA ' + cur.name.toUpperCase(), sub:cur.c.name + ' · ' + cur.c.role, col:TEAM_COL[cur.team]};
   turnStartF = frame; SFX.turn();
@@ -813,7 +815,7 @@ function canUse(u, i) { const w = u.c.w[i]; return w.ult ? u.gauge >= 100 : u.cd
 function startAim(sec) {
   power = 0; charging = false; timer = turnTotal = sec*60;
   if (!canUse(cur, cur.weapon)) cur.weapon = 0;
-  if (cur.ai) { state = 'ai'; aiWait = 60; aiPlan = planShot(cur); } else state = 'aim';
+  if (cur.ai) { state = 'ai'; aiWait = 60; aiPlan = planShot(cur); if (cur.gauge >= 100 && !cur.c.w[aiPlan.w].ult) powUp(cur); } else state = 'aim';
   syncButtons();
 }
 function walk(u, dir) {
@@ -865,7 +867,7 @@ function useItem(u, k) {
 function muzzle(u, base) { const a = base*Math.PI/180; return [u.x + Math.cos(a)*22, u.y - 12 - Math.sin(a)*22]; }
 function mkProj(owner, x, y, a, s, w, tele) {
   return {x, y, vx:Math.cos(a)*s, vy:-Math.sin(a)*s, w, owner, age:0, trail:[], tunnel:[],
-          bounces:w.bounce || 0, drill:w.drill || 0, drilled:false, tele, windF:owner.c.windF, mult:turnFx.mult};
+          bounces:w.bounce || 0, drill:w.drill || 0, drilled:false, tele, windF:owner.c.windF, mult:turnFx.mult*(turnFx.pow ? POW_MULT : 1), pow:turnFx.pow};
 }
 function fire(u, ang, pw, wi) {
   charging = false;
@@ -938,16 +940,22 @@ function onImpact(p, hit) {
     popups.push(mkPop(u.x, u.y - 50, 'Dịch chuyển!', '#d9b8ff', 18)); SFX.tele();
     return;
   }
-  explode(hit.x, hit.y, p.w, p.owner, p.mult);
+  explode(hit.x, hit.y, p.pow ? Object.assign({}, p.w, {r:Math.round(p.w.r*POW_R)}) : p.w, p.owner, p.mult, p.pow);
   if (p.w.cluster)
     for (let k = 0; k < 5; k++) {
       const f = mkProj(p.owner, hit.x, hit.y - 4, (55 + k*17.5)*Math.PI/180, 4 + Math.random()*2, FRAG, false);
-      f.age = 20; f.mult = p.mult; projs.push(f);
+      f.age = 20; f.mult = p.mult; f.pow = p.pow; projs.push(f);
     }
 }
 function mkPop(x, y, s, c = '#fff', size = 22) { return {x, y, s, c, size, t:80, life:80}; }
-function explode(x, y, w, owner, mult) {
+function explode(x, y, w, owner, mult, pow) {
   carveRaw(x, y, w.r, 7);
+  if (pow) { // POW: vòng xung kích hồng + tia lửa sáng
+    booms.push({x, y, r:w.r*1.3, t:0, life:34, tele:true});
+    for (let i = 0; i < 30; i++) { const a = Math.random()*Math.PI*2, sp = 3 + Math.random()*7;
+      addP({type:'spark', x, y, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp - 1, g:.1, drag:.95, s:2.6, life:26 + Math.random()*16, c: i % 3 ? '#ff8af0' : '#fff2b0'}); }
+    popups.push(mkPop(x, y - w.r - 10, 'POW!', '#ff8af0', 26));
+  }
   const ice = !!w.freeze;
   booms.push({x, y, r:w.r, t:0, life:28, ice});
   const dc = `rgb(${theme.dirt})`;
@@ -1005,7 +1013,8 @@ function planShot(u) {
   const tgt = foes.reduce((a, b) => Math.abs(a.x - u.x) < Math.abs(b.x - u.x) ? a : b);
   u.face = tgt.x >= u.x ? 1 : -1;
   let wi = 0;
-  if (canUse(u, 2)) wi = 2; else if (canUse(u, 1) && Math.random() < .6) wi = 1;
+  // POW đầy: 55% tung Siêu đạn, 45% giữ đạn thường/chiêu riêng rồi kích POW (xem startAim)
+  if (canUse(u, 2) && Math.random() < .55) wi = 2; else if (canUse(u, 1) && Math.random() < .6) wi = 1;
   const w = u.c.w[wi];
   let best = {d:1e9, ang:u.angle, pw:60};
   for (let ang = Math.max(5, u.c.amin); ang <= u.c.amax; ang += 2)
@@ -1301,6 +1310,12 @@ function drawUnit(u) {
   ctx.fillStyle = tg; ctx.beginPath(); ctx.ellipse(u.x, u.y - 2, 26, 9, 0, 0, Math.PI*2); ctx.fill();
   ctx.globalCompositeOperation = 'source-over';
   drawChar(ctx, u.x, u.y, u.ck, col, u.face, u.angle, {t:frame, ph:u.ph, recoil:u.recoil, hat:u.hat, mood: u.flash > 0 ? 'hurt' : u.happyT > 0 ? 'happy' : ''});
+  if (u === cur && turnFx.pow && (state === 'aim' || state === 'ai' || state === 'fly')) {
+    const pr = 26 + Math.sin(frame*.2)*3, ag = ctx.createRadialGradient(u.x, u.y - 12, 6, u.x, u.y - 12, pr);
+    ag.addColorStop(0, 'rgba(255,140,240,0)'); ag.addColorStop(.7, 'rgba(255,140,240,.22)'); ag.addColorStop(1, 'rgba(255,220,120,.55)');
+    ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = ag; ctx.beginPath(); ctx.arc(u.x, u.y - 12, pr, 0, Math.PI*2); ctx.fill(); ctx.globalCompositeOperation = 'source-over';
+    if (frame % 3 === 0) addP({type:'ember', x:u.x + (Math.random() - .5)*30, y:u.y - Math.random()*20, vy:-.8 - Math.random(), s:1.4, life:40, ph:Math.random()*6, c:'#ff8af0'});
+  }
   if (u.flash > 0) { ctx.fillStyle = `rgba(255,255,255,${u.flash/10*.7})`; ctx.beginPath(); ctx.ellipse(u.x, u.y - 10, 17, 13, 0, 0, Math.PI*2); ctx.fill(); }
   if (u.shield) {
     const gr = ctx.createRadialGradient(u.x, u.y - 12, 8, u.x, u.y - 12, 25);
@@ -1421,11 +1436,11 @@ function drawBooms() {
 }
 function drawProjs() {
   projs.forEach(p => {
-    const col = p.tele ? '#c79bff' : p.owner.c.acc;
+    const col = p.tele ? '#c79bff' : p.pow ? '#ff8af0' : p.owner.c.acc;
     if (p.trail.length > 1) {
       ctx.lineCap = 'round';
       for (let i = 1; i < p.trail.length; i++) {
-        ctx.strokeStyle = `rgba(255,255,255,${i/p.trail.length*.55})`; ctx.lineWidth = i/p.trail.length*4;
+        ctx.strokeStyle = p.pow ? `rgba(255,${120 + i/p.trail.length*120|0},230,${i/p.trail.length*.8})` : `rgba(255,255,255,${i/p.trail.length*.55})`; ctx.lineWidth = i/p.trail.length*(p.pow ? 7 : 4);
         ctx.beginPath(); ctx.moveTo(p.trail[i - 1][0], p.trail[i - 1][1]); ctx.lineTo(p.trail[i][0], p.trail[i][1]); ctx.stroke();
       }
     }
@@ -1556,7 +1571,7 @@ function drawTop() {
   // Hiệu ứng đang bật
   const fx = [];
   if (turnFx.shots > 1) fx.push(['⏩ Bắn 2 lần', '#ffd36b']); if (turnFx.tele) fx.push(['🌀 Dịch chuyển', '#c79bff']);
-  if (turnFx.mult > 1) fx.push(['💥 +50% sát thương', '#ff8a6a']); if (cur && cur.shield) fx.push(['🛡️ Khiên', '#9fe3f0']);
+  if (turnFx.pow) fx.push(['⚡ POW ×1.5', '#ff8af0']); if (turnFx.mult > 1) fx.push(['💥 +50% sát thương', '#ff8a6a']); if (cur && cur.shield) fx.push(['🛡️ Khiên', '#9fe3f0']);
   let fxX = cx - fx.length*62;
   fx.forEach(([s, c]) => { ctx.font = `700 12px ${F}`; const w = ctx.measureText(s).width + 16;
     ctx.fillStyle = 'rgba(8,12,26,.75)'; rr(ctx, fxX, 78, w, 20, 10); ctx.fill(); ctx.strokeStyle = c; ctx.lineWidth = 1; ctx.stroke();
@@ -1597,7 +1612,7 @@ function drawBottom() {
   txt('NHIÊN LIỆU', bx, py + 66, 10, '#9fc0ff');
   bar(bx + 64, py + 58, 150, 9, u.fuel/100, '#ffc65a', '#e07b12');
   const full = u.gauge >= 100;
-  txt(full ? 'SIÊU ĐẠN!' : 'SIÊU', bx + 230, py + 66, 10, full ? '#ff9cf5' : '#c9a6ff');
+  txt(full ? 'POW ĐẦY!' : 'POW', bx + 230, py + 66, 10, full ? '#ff9cf5' : '#c9a6ff');
   bar(bx + 290, py + 58, 150, 9, u.gauge/100, full ? (frame % 20 < 10 ? '#ff9cf5' : '#ffe08a') : '#d0a8ff', full ? '#c02ad8' : '#7a3fd0');
   txt(cur.ai ? 'Máy đang tính toán…' : document.documentElement.classList.contains('touch') ? 'Giữ BẮN để nạp lực · kéo trên màn chơi để ngắm' : 'Giữ SPACE để nạp lực · ▲▼ chỉnh góc · ◀▶ di chuyển', bx, py + 84, 10, 'rgba(200,215,255,.6)', 'left', 600);
   // Vũ khí
@@ -1896,6 +1911,7 @@ function pressKey(k) {
   keys[k] = true;
   if (k === ' ' && humanTurn() && !charging) { charging = true; power = 0; }
   if (['1', '2', '3'].includes(k)) selectWeapon(+k - 1);
+  if (k.toLowerCase() === 'p') activatePow();
   const it = ITEMS.find(i => i.key === k.toLowerCase());
   if (it && humanTurn()) useItem(cur, it.k);
 }
@@ -1903,26 +1919,46 @@ function releaseKey(k) {
   keys[k] = false;
   if (k === ' ' && charging && humanTurn()) fire(cur, cur.angle, power, cur.weapon);
 }
+// ===== POW: thanh nộ đầy thì chọn: bắn Siêu đạn (phím 3) HOẶC kích POW cường hoá đạn đang chọn trong lượt này =====
+const POW_MULT = 1.5, POW_R = 1.25, POW_TURN = 6;
+function powUp(u) {
+  u.gauge = 0; turnFx.pow = true;
+  popups.push(mkPop(u.x, u.y - 72, 'POW!', '#ff8af0', 34));
+  booms.push({x:u.x, y:u.y - 12, r:34, t:0, life:24, tele:true});
+  for (let i = 0; i < 26; i++) { const a = Math.random()*Math.PI*2, sp = 1.5 + Math.random()*3;
+    addP({type:'spark', x:u.x, y:u.y - 12, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp - 1, g:.05, drag:.95, s:2.4, life:30, c: i % 2 ? '#ff8af0' : '#ffd34a'}); }
+  shake = Math.max(shake, 5); SFX.ult(); syncButtons();
+}
+function canPow() { return humanTurn() && !charging && !turnFx.pow && cur.gauge >= 100 && !cur.c.w[cur.weapon].ult; }
+function activatePow() {
+  if (!humanTurn() || charging || turnFx.pow) return;
+  if (cur.gauge < 100) { popups.push(mkPop(cur.x, cur.y - 72, 'POW chưa đầy', '#c9a6ff', 16)); return; }
+  if (cur.c.w[cur.weapon].ult) { popups.push(mkPop(cur.x, cur.y - 72, 'Siêu đạn đã dùng POW', '#c9a6ff', 16)); return; }
+  powUp(cur); if (window.Meta && Meta.track) Meta.track('pow');
+}
 function selectWeapon(i) { if (humanTurn() && !charging && canUse(cur, i)) { cur.weapon = i; SFX.click(); syncButtons(); } }
 // Cập nhật trực tiếp trên nút: góc bắn, nhiên liệu, vòng lực khi giữ BẮN, vạch lực phát trước, làm mờ khi chưa tới lượt
-const ctlEls = {ang: document.querySelectorAll('.angv'), fuel: document.querySelectorAll('.fuel u'), fire: document.querySelectorAll('#fire, #touch .tfire'), sub: document.querySelector('#touch .tfire .sub')};
+const ctlEls = {pow: document.getElementById('powBtn'), ang: document.querySelectorAll('.angv'), fuel: document.querySelectorAll('.fuel u'), fire: document.querySelectorAll('#fire, #touch .tfire'), sub: document.querySelector('#touch .tfire .sub')};
 let ctlLast = '';
 function updateControls() {
   const mine = humanTurn(), p = charging ? power/100 : 0, ang = cur ? cur.angle : 0, fuel = cur ? Math.max(0, cur.fuel)|0 : 0;
   const lp = cur && cur.lastPower != null && !cur.ai ? cur.lastPower/100 : -1;
-  const key = `${+mine}|${ang}|${fuel}|${p.toFixed(3)}|${lp}`;
+  const key = `${+mine}|${ang}|${fuel}|${p.toFixed(3)}|${lp}|${cur ? cur.gauge|0 : 0}|${+turnFx.pow}|${cur ? cur.weapon : 0}`;
   if (key === ctlLast) return; ctlLast = key;
   document.documentElement.classList.toggle('myturn', mine);
   ctlEls.ang.forEach(e => e.textContent = ang + '°');
   ctlEls.fuel.forEach(e => e.style.width = fuel + '%');
   ctlEls.fire.forEach(e => { e.style.setProperty('--p', p); e.style.setProperty('--lp', Math.max(0, lp)); e.style.setProperty('--tk', lp >= 0 ? '#fff' : 'transparent'); e.classList.toggle('charging', charging); });
   if (ctlEls.sub) ctlEls.sub.textContent = charging ? Math.round(power) + '%' : 'giữ để nạp';
+  const pb = ctlEls.pow, g = cur && !cur.ai ? cur.gauge : 0, on = mine && turnFx.pow;
+  pb.style.setProperty('--g', g/100); pb.querySelector('.pv').textContent = on ? 'BẬT' : Math.floor(g) + '%';
+  pb.classList.toggle('full', g >= 100 && !turnFx.pow); pb.classList.toggle('on', on); pb.classList.toggle('ready', canPow());
 }
 if (Platform.native || matchMedia('(pointer:coarse)').matches) document.documentElement.classList.add('touch');
 // WebView cũ chưa hỗ trợ aspect-ratio: tự đặt chiều cao nút tròn bằng chiều rộng
 if (!(window.CSS && CSS.supports && CSS.supports('aspect-ratio', '1'))) {
   const fixAR = () => {
-    document.querySelectorAll('#touch .tb, #touch .tfire, #touch .titems button').forEach(b => b.style.height = b.offsetWidth + 'px');
+    document.querySelectorAll('#touch .tb, #touch .tfire, #touch .tpow, #touch .titems button').forEach(b => b.style.height = b.offsetWidth + 'px');
     [['.tmove', 2.6], ['.tang', .42]].forEach(([s, r]) => { const e = document.querySelector('#touch ' + s); e.style.height = e.offsetWidth/r + 'px'; });
   };
   addEventListener('resize', fixAR); setTimeout(fixAR, 0); setTimeout(fixAR, 800);
@@ -1952,6 +1988,7 @@ document.querySelectorAll('button[data-k]').forEach(b => {
   ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => b.addEventListener(ev, () => { if (keys[b.dataset.k]) releaseKey(b.dataset.k); }));
 });
 document.querySelectorAll('button.w').forEach(b => b.addEventListener('click', () => selectWeapon(+b.dataset.w)));
+document.getElementById('powBtn').addEventListener('click', () => activatePow());
 document.getElementById('mute').onclick = e => { muted = !muted; e.currentTarget.textContent = muted ? '🔇' : '🔊'; };
 
 // ================= Menu =================
