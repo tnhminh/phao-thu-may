@@ -3,6 +3,9 @@ window.GAME_CONFIG = {
   version: '1.0.0',
   appId: 'vn.phaothumay.game',
   privacyUrl: 'privacy.html',
+  // Link trang ứng dụng trên Google Play (vd. https://play.google.com/store/apps/details?id=vn.phaothumay.game).
+  // Bản web dẫn người chơi về đây khi bấm mua gói. Để trống nếu app chưa lên kho.
+  storeUrl: '',
   ads: {
     testing: true,
     // Mã quảng cáo THỬ công khai của Google AdMob — an toàn khi phát triển, không tạo doanh thu.

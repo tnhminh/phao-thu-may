@@ -8,12 +8,14 @@
     "assets": "capacitor-assets generate --iconBackgroundColor '#2f6fd0' --splashBackgroundColor '#070b16'",
     "sync": "cap sync",
     "android:debug": "cap sync android && cd android && ./gradlew assembleDebug",
-    "android:release": "cap sync android && cd android && ./gradlew bundleRelease",
-    "ios:open": "cap sync ios && cap open ios"
+    "android:release": "node scripts/release-check.mjs android && cap sync android && cd android && ./gradlew bundleRelease",
+    "ios:open": "cap sync ios && cap open ios",
+    "release:check": "node scripts/release-check.mjs android"
   },
   "dependencies": {
     "@capacitor-community/admob": "8.3.0",
     "@capacitor-community/in-app-review": "8.0.0",
+    "@capacitor-firebase/analytics": "8.5.2",
     "@capacitor/android": "8.6.0",
     "@capacitor/app": "8.1.2",
     "@capacitor/core": "8.6.0",

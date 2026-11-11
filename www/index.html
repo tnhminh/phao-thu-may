@@ -858,6 +858,7 @@ function useItem(u, k) {
   else if (k === 'power') turnFx.mult = 1.5;
   u.items[k]--; turnFx.item = true;
   if (!u.ai && window.Meta) Meta.track('item');
+  if (!u.ai && !demo && window.Platform) Platform.log('item_used', {item:k});
   popups.push(mkPop(u.x, u.y - 72, ITEMS.find(i => i.k === k).name, '#ffe08a', 16));
   SFX.item(); syncButtons();
   return true;
@@ -1934,7 +1935,7 @@ function activatePow() {
   if (!humanTurn() || charging || turnFx.pow) return;
   if (cur.gauge < 100) { popups.push(mkPop(cur.x, cur.y - 72, 'POW chưa đầy', '#c9a6ff', 16)); return; }
   if (cur.c.w[cur.weapon].ult) { popups.push(mkPop(cur.x, cur.y - 72, 'Siêu đạn đã dùng POW', '#c9a6ff', 16)); return; }
-  powUp(cur); if (window.Meta && Meta.track) Meta.track('pow');
+  powUp(cur); if (window.Meta && Meta.track) Meta.track('pow'); if (window.Platform) Platform.log('pow_used', {weapon:cur.weapon});
 }
 function selectWeapon(i) { if (humanTurn() && !charging && canUse(cur, i)) { cur.weapon = i; SFX.click(); syncButtons(); } }
 // Cập nhật trực tiếp trên nút: góc bắn, nhiên liệu, vòng lực khi giữ BẮN, vạch lực phát trước, làm mờ khi chưa tới lượt

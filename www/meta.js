@@ -258,7 +258,7 @@
       <div><b class="k">💪</b><span><b>Bắn:</b> giữ nút BẮN (hoặc Space) để nạp lực, thả ra để bắn. Vạch trắng trên thanh lực là lực phát trước.</span></div>
       <div><b class="k">🌬️</b><span><b>Gió:</b> mũi tên ở giữa phía trên cho biết hướng và sức gió. Gió đẩy đạn lệch đi!</span></div>
       <div><b class="k">⭐</b><span><b>POW:</b> gây/nhận sát thương và mỗi lượt đều nạp thanh POW. Đầy thì chọn: bấm 3 tung Siêu đạn, hoặc bấm nút POW để đạn lượt đó mạnh ×1.5, nổ to hơn.</span></div></div>`,
-      [['Vào trận!', () => { S.tutorial = true; save(); go(); }]]);
+      [['Vào trận!', () => { if (!S.tutorial) PF.log('tutorial_complete'); S.tutorial = true; save(); go(); }]]);
   }
 
   // ================= Kết thúc trận =================
@@ -292,12 +292,13 @@
     PF.log('match_end', {won, mode:ctx.mode, coins, gems});
     return lastRes = {won, coins, gems, xp, stars, newStars, chest, stage:cfg.stage, doubled:false};
   }
+  function AD(app, web) { return PF.native ? app : web; }
   function renderResult(box, res) {
     if (res.pvp) { box.innerHTML = ''; $('again').textContent = '🔁 Đấu lại'; return; }
     let h = '';
     if (res.stage) h += `<div class="stars">${[1, 2, 3].map(i => i <= res.stars ? `<b style="animation-delay:${i*.18}s">★</b>` : '☆').join('')}</div>`;
     h += `<div class="rw">${rwTxt(res).map(t => `<span>${t}</span>`).join('')}${res.chest ? `<span>🎁 Rương: ${rwTxt(res.chest).join(' ')}</span>` : ''}</div>`;
-    if (res.coins + res.gems > 0) h += `<button id="dblBtn" class="on">📺 Xem quảng cáo nhận x2 (${rwTxt({coins:res.coins, gems:res.gems}).join(' ')})</button>`;
+    if (res.coins + res.gems > 0) h += `<button id="dblBtn" class="on">📺 ${AD('Xem quảng cáo nhận', 'Nhận')} x2 (${rwTxt({coins:res.coins, gems:res.gems}).join(' ')})</button>`;
     box.innerHTML = h;
     const b = $('dblBtn');
     if (b) b.onclick = async () => {
@@ -370,7 +371,7 @@
         const btn = $('spinBtn'), info = $('wheelInfo');
         const sync = () => {
           if (S.spin.free > 0) { btn.textContent = 'QUAY MIỄN PHÍ'; btn.disabled = false; }
-          else if (S.spin.ad < 3) { btn.textContent = `📺 Xem quảng cáo để quay (${3 - S.spin.ad})`; btn.disabled = false; }
+          else if (S.spin.ad < 3) { btn.textContent = `📺 ${AD('Xem quảng cáo để quay', 'Quay thêm')} (${3 - S.spin.ad})`; btn.disabled = false; }
           else { btn.textContent = 'Hết lượt hôm nay'; btn.disabled = true; }
           info.textContent = 'Mỗi ngày 1 lượt miễn phí, thêm 3 lượt bằng quảng cáo.';
         };
@@ -396,6 +397,8 @@
   }
 
   // ================= Cửa hàng =================
+  // Bản web là bản chơi thử: gói tiền thật chỉ bán trên app; thưởng "xem quảng cáo" nhận ngay
+  const PRICE = id => PF.iap.available ? PF.iap.price(id) : '📱 Trên app';
   function openShop(tab = 'offers') {
     modal(`<h2>CỬA HÀNG</h2>${curBar()}<div class="tabs" id="shopTabs">
       <button data-t="offers">Ưu đãi</button><button data-t="gems">Kim cương</button><button data-t="chars">Nhân vật</button><button data-t="hats">Mũ</button></div><div id="shopBody"></div>`,
@@ -407,14 +410,14 @@
           const B = $('shopBody'); let h = '<div class="shopgrid">';
           if (t === 'offers') {
             const sp = PF.iap.byId('starter_pack');
-            if (!S.starter) h += `<div class="item hot"><div><span class="tag">CHỈ 1 LẦN</span><h3>🎁 ${sp.name}</h3><div>Mở khóa <b>Rùa Băng</b> + ${sp.gems} 💎 + ${fmt(sp.coins)} 🪙</div></div><button class="on" data-buy="starter_pack">${PF.iap.price('starter_pack')}</button></div>`;
-            h += `<div class="item"><div class="big">🚫</div><b>Xóa quảng cáo</b><small>Tắt quảng cáo chuyển cảnh vĩnh viễn. Quảng cáo nhận thưởng vẫn tùy bạn chọn.</small>${S.noAds ? '<button disabled>✓ Đã sở hữu</button>' : `<button data-buy="remove_ads">${PF.iap.price('remove_ads')}</button>`}</div>`;
+            if (!S.starter) h += `<div class="item hot"><div><span class="tag">CHỈ 1 LẦN</span><h3>🎁 ${sp.name}</h3><div>Mở khóa <b>Rùa Băng</b> + ${sp.gems} 💎 + ${fmt(sp.coins)} 🪙</div></div><button class="on" data-buy="starter_pack">${PRICE('starter_pack')}</button></div>`;
+            h += `<div class="item"><div class="big">🚫</div><b>Xóa quảng cáo</b><small>Tắt quảng cáo chuyển cảnh vĩnh viễn. Quảng cáo nhận thưởng vẫn tùy bạn chọn.</small>${S.noAds ? '<button disabled>✓ Đã sở hữu</button>' : `<button data-buy="remove_ads">${PRICE('remove_ads')}</button>`}</div>`;
             const left = C.ads.rewardedGemsPerDay - S.adGems.n;
-            h += `<div class="item"><div class="big">📺</div><b>Kim cương miễn phí</b><small>Xem quảng cáo nhận ${C.ads.rewardedGemsAmount} 💎 · còn ${left}/${C.ads.rewardedGemsPerDay} lượt hôm nay</small><button data-adgems ${left <= 0 ? 'disabled' : ''}>Xem quảng cáo</button></div>`;
+            h += `<div class="item"><div class="big">📺</div><b>Kim cương miễn phí</b><small>${AD('Xem quảng cáo nhận', 'Nhận')} ${C.ads.rewardedGemsAmount} 💎 · còn ${left}/${C.ads.rewardedGemsPerDay} lượt hôm nay</small><button data-adgems ${left <= 0 ? 'disabled' : ''}>${AD('Xem quảng cáo', 'Nhận')}</button></div>`;
             h += `<div class="item"><div class="big">🪙</div><b>500 vàng</b><small>Đổi bằng kim cương</small><button data-ex="500">25 💎</button></div>`;
             h += `<div class="item"><div class="big">💰</div><b>3.000 vàng</b><small>Đổi bằng kim cương</small><button data-ex="3000">120 💎</button></div>`;
           } else if (t === 'gems') {
-            C.iap.filter(p => p.type === 'consumable').forEach(p => h += `<div class="item">${p.tag ? `<span class="tag">${p.tag}</span>` : ''}<div class="big">💎</div><b>${p.name}</b><button class="on" data-buy="${p.id}">${PF.iap.price(p.id)}</button></div>`);
+            C.iap.filter(p => p.type === 'consumable').forEach(p => h += `<div class="item">${p.tag ? `<span class="tag">${p.tag}</span>` : ''}<div class="big">💎</div><b>${p.name}</b><button class="on" data-buy="${p.id}">${PRICE(p.id)}</button></div>`);
           } else if (t === 'chars') {
             KEYS.forEach(k => {
               const p = CHAR_PRICE[k];

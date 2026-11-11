@@ -1,5 +1,5 @@
 // Lớp nền tảng: quảng cáo (AdMob), mua hàng trong app, thông báo, rung, nút Back, đánh giá.
-// Trên app (Capacitor) dùng plugin thật; trên web dùng bản mô phỏng có ghi rõ "chế độ thử".
+// Trên app (Capacitor) dùng plugin thật. Bản web là bản chơi thử: không bán hàng bằng tiền thật, không hiện quảng cáo.
 (function () {
   const C = window.GAME_CONFIG;
   const cap = window.Capacitor;
@@ -13,8 +13,14 @@
     on(ev, fn) { L[ev].push(fn); },
     emit(ev, ...a) { L[ev].forEach(f => { try { f(...a); } catch (e) { console.error(e); } }); },
 
-    // ---------- Phân tích (gắn Firebase/GA sau, hiện ghi console) ----------
-    log(ev, params = {}) { try { if (P.FirebaseAnalytics) P.FirebaseAnalytics.logEvent({name: ev, params}); } catch (_) {} if (!native) console.debug('[analytics]', ev, params); },
+    // ---------- Phân tích: Firebase Analytics trên app (cần google-services.json / GoogleService-Info.plist) ----------
+    // Tên sự kiện/tham số theo quy tắc Firebase: chữ thường, gạch dưới, giá trị là chuỗi hoặc số.
+    log(ev, params = {}) {
+      const clean = {};
+      for (const k in params) { const v = params[k]; clean[k] = typeof v === 'number' || typeof v === 'string' ? v : typeof v === 'boolean' ? +v : String(v); }
+      try { if (P.FirebaseAnalytics) Promise.resolve(P.FirebaseAnalytics.logEvent({name: ev, params: clean})).catch(() => {}); } catch (_) {}
+      if (!native) console.debug('[analytics]', ev, clean);
+    },
 
     haptic(kind = 'LIGHT') { try { if (P.Haptics) P.Haptics.impact({style: kind}); else if (navigator.vibrate) navigator.vibrate(kind === 'HEAVY' ? 40 : 15); } catch (_) {} },
 
@@ -37,21 +43,21 @@
         try { await P.AdMob.prepareRewardVideoAd({adId: this.ids().rewarded, isTesting: C.ads.testing}); this.rewardReady = true; } catch (_) { this.rewardReady = false; }
       },
       async interstitial() {
+        if (!native) return false; // web: không có quảng cáo chuyển cảnh
         Platform.log('ad_interstitial');
-        if (!native) return mockAd(false);
         if (!P.AdMob || !this.interReady) { this.preload(); return false; }
         Platform.emit('adstart');
-        try { await P.AdMob.showInterstitial(); return true; } catch (_) { return false; }
+        try { await P.AdMob.showInterstitial(); Platform.log('ad_interstitial_shown'); return true; } catch (_) { return false; }
         finally { Platform.emit('adend'); this.interReady = false; this.preload(); }
       },
       // Trả về true nếu người chơi xem hết và được thưởng.
       async rewarded(placement) {
         Platform.log('ad_rewarded', {placement});
-        if (!native) return mockAd(true);
+        if (!native) { toast('Bản web: nhận thưởng ngay, không cần xem quảng cáo.'); return true; }
         if (!P.AdMob) return false;
         if (!this.rewardReady) { try { await P.AdMob.prepareRewardVideoAd({adId: this.ids().rewarded, isTesting: C.ads.testing}); } catch (_) { return false; } }
         Platform.emit('adstart');
-        try { const r = await P.AdMob.showRewardVideoAd(); return !!(r && (r.amount !== undefined || r.type)); }
+        try { const r = await P.AdMob.showRewardVideoAd(); const ok = !!(r && (r.amount !== undefined || r.type)); if (ok) Platform.log('ad_rewarded_done', {placement}); return ok; }
         catch (_) { return false; }
         finally { Platform.emit('adend'); this.rewardReady = false; this.preload(); }
       },
@@ -60,6 +66,7 @@
     // ---------- Mua hàng trong app ----------
     iap: {
       ready: false,
+      available: native, // web: không bán hàng bằng tiền thật
       byId(id) { return C.iap.find(p => p.id === id); },
       price(id) {
         if (native && window.CdvPurchase) { const p = CdvPurchase.store.get(id); if (p && p.pricing) return p.pricing.price; }
@@ -82,9 +89,9 @@
       async buy(id) {
         Platform.log('iap_click', {id});
         if (!native) {
-          const ok = await mockConfirm(`<b>${this.byId(id).name}</b><br>Giá: ${this.price(id)}<br><small>Bản web đang ở chế độ thử: giao dịch chỉ là mô phỏng, không trừ tiền thật.</small>`, 'Mua (thử)');
-          if (ok) Platform.emit('grant', id, {restore: false});
-          return ok;
+          toast(C.storeUrl ? 'Gói này chỉ có trên ứng dụng — đang mở cửa hàng ứng dụng…' : 'Gói này chỉ có trên ứng dụng điện thoại.');
+          if (C.storeUrl) Platform.openUrl(C.storeUrl);
+          return false;
         }
         if (!window.CdvPurchase) return false;
         const p = CdvPurchase.store.get(id), offer = p && p.getOffer();
@@ -149,18 +156,6 @@
       document.body.appendChild(o);
       o.querySelector('.ok').onclick = () => { o.remove(); res(true); };
       o.querySelector('.no').onclick = () => { o.remove(); res(false); };
-    });
-  }
-  // Quảng cáo mô phỏng cho bản web (5 giây). Rewarded: chỉ thưởng khi xem hết.
-  function mockAd(rewarded) {
-    return new Promise(res => {
-      Platform.emit('adstart');
-      let n = 5;
-      const o = el(`<div class="ovl show mockad"><div class="box"><div class="adtag">QUẢNG CÁO MẪU</div><h2>Pháo Thủ Mây</h2><p>Bản web không hiển thị quảng cáo thật.<br>Trên app, đây là vị trí quảng cáo ${rewarded ? 'có thưởng' : 'chuyển cảnh'} của AdMob.</p><div class="adcount">${n}</div><div class="btns"><button class="close" disabled>Đóng</button></div></div></div>`);
-      document.body.appendChild(o);
-      const cnt = o.querySelector('.adcount'), btn = o.querySelector('.close');
-      const iv = setInterval(() => { n--; cnt.textContent = n > 0 ? n : '✓'; if (n <= 0) { clearInterval(iv); btn.disabled = false; btn.textContent = rewarded ? 'Nhận thưởng' : 'Đóng'; } }, 1000);
-      btn.onclick = () => { clearInterval(iv); o.remove(); Platform.emit('adend'); res(true); };
     });
   }
   Platform.toast = toast; Platform.confirm = mockConfirm; Platform.el = el;

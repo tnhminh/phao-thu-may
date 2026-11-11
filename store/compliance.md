@@ -1,13 +1,14 @@
 # Khai báo tuân thủ cho kho ứng dụng
 
 ## Google Play — An toàn dữ liệu (Data safety)
-Dựa trên mã nguồn hiện tại (lưu tiến trình trên máy, AdMob, Google Play Billing, thông báo cục bộ):
+Dựa trên mã nguồn hiện tại (lưu tiến trình trên máy, AdMob, Google Analytics for Firebase, Google Play Billing, thông báo cục bộ):
 
 | Câu hỏi | Trả lời |
 |---|---|
-| Ứng dụng có thu thập hoặc chia sẻ dữ liệu người dùng? | **Có** (do SDK AdMob) |
+| Ứng dụng có thu thập hoặc chia sẻ dữ liệu người dùng? | **Có** (do SDK AdMob và Firebase Analytics) |
 | Mã nhận dạng thiết bị hoặc mã khác (Advertising ID) | Thu thập + chia sẻ · Mục đích: Quảng cáo/Tiếp thị, Phân tích, Chống gian lận · Không bắt buộc ở nơi cần đồng ý |
-| Tương tác với ứng dụng (tương tác quảng cáo) | Thu thập · Quảng cáo, Phân tích |
+| Mã nhận dạng khác: App instance ID (Firebase) | Thu thập · Phân tích |
+| Tương tác với ứng dụng (sự kiện chơi game của Firebase, tương tác quảng cáo) | Thu thập · Phân tích, Quảng cáo |
 | Chẩn đoán (nhật ký sự cố của SDK quảng cáo) | Thu thập · Phân tích |
 | Vị trí gần đúng (suy ra từ IP bởi AdMob) | Thu thập · Quảng cáo |
 | Thông tin thanh toán | **Không** — do Google Play xử lý |
@@ -26,7 +27,7 @@ Tham khảo hướng dẫn chính thức của AdMob về Data safety để đ�
 
 ## Apple App Store — Nhãn quyền riêng tư (App Privacy)
 - **Dữ liệu dùng để theo dõi bạn:** Mã nhận dạng (Device ID) — chỉ khi người dùng đồng ý ATT.
-- **Dữ liệu liên kết/không liên kết với bạn:** Dữ liệu sử dụng (tương tác quảng cáo), Chẩn đoán, Vị trí gần đúng — mục đích Quảng cáo bên thứ ba, Phân tích.
+- **Dữ liệu liên kết/không liên kết với bạn:** Dữ liệu sử dụng (tương tác sản phẩm qua Firebase Analytics, tương tác quảng cáo), Mã nhận dạng (App instance ID), Chẩn đoán, Vị trí gần đúng — mục đích Quảng cáo bên thứ ba, Phân tích.
 - **Mua hàng:** Apple xử lý, không thu thập.
 - **Phân loại tuổi:** Bạo lực hoạt hình/giả tưởng ở mức Không thường xuyên/Nhẹ → thường **9+**.
 - **Mã hóa xuất khẩu:** đã đặt `ITSAppUsesNonExemptEncryption = false`.
