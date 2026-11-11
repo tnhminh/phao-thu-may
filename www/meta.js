@@ -34,16 +34,18 @@
   const rwTxt = r => [r.coins ? `+${fmt(r.coins)} 🪙` : '', r.gems ? `+${fmt(r.gems)} 💎` : '', r.xp ? `+${r.xp} XP` : ''].filter(Boolean);
 
   // ================= Nội dung =================
-  const CHAR_PRICE = {bird:{coins:1200, gems:60}, turtle:{coins:2000, gems:100}};
+  const CHAR_PRICE = {bird:{coins:1200, gems:60}, turtle:{coins:2000, gems:100}, cat:{coins:3000, gems:150}};
+  const NEW_CHARS = ['cat']; // gắn nhãn MỚI trong cửa hàng/màn chọn đội
   const HATS = [{id:'none', name:'Không đội', price:0}, {id:'cap', name:'Mũ lưỡi trai', price:30}, {id:'party', name:'Mũ tiệc', price:40},
     {id:'flower', name:'Vòng hoa', price:50}, {id:'helmet', name:'Mũ sắt', price:80}, {id:'tophat', name:'Mũ ảo thuật', price:100}, {id:'crown', name:'Vương miện', price:150}];
   const DIFF = {easy:{name:'Dễ', skill:.4, mul:.8}, normal:{name:'Thường', skill:.68, mul:1}, hard:{name:'Khó', skill:.92, mul:1.5}};
   const CHAPTERS = [{name:'Đồng cỏ', map:'meadow'}, {name:'Hoàng hôn', map:'sunset'}, {name:'Băng tuyết', map:'snow'}];
-  const KEYS = ['ox', 'frog', 'bird', 'turtle'];
+  const KEYS = ['ox', 'frog', 'bird', 'turtle', 'cat'];
   function stage(n) {
     const ch = Math.floor((n - 1)/10), k = (n - 1) % 10 + 1, boss = k === 10;
     const cnt = n <= 2 ? 1 : (boss || k === 5) ? 3 : 2, b = [];
-    for (let i = 0; i < cnt; i++) b.push(KEYS[(n*3 + i*5 + ch) % 4]);
+    // chương 1–2 giữ nguyên đội hình cũ; chương 3 có thêm Mèo Sấm
+    for (let i = 0; i < cnt; i++) b.push(ch < 2 ? KEYS[(n*3 + i*5 + ch) % 4] : KEYS[(n*3 + i*2 + ch) % 5]);
     return {n, ch, k, boss, map:CHAPTERS[ch].map, b, hp:+(0.75 + n*0.022).toFixed(2), skill:Math.min(.95, .3 + n*.022),
             windMax:Math.min(10, 3 + Math.floor(n/3)), coins:60 + n*12, gems:boss ? 15 : (k === 5 ? 5 : 0)};
   }
@@ -421,7 +423,7 @@
           } else if (t === 'chars') {
             KEYS.forEach(k => {
               const p = CHAR_PRICE[k];
-              h += `<div class="item"><canvas width="144" height="144" data-k="${k}"></canvas><b>${CHARS[k].name}</b><small>${CHARS[k].role}</small>${S.unlocked[k] ? '<button disabled>✓ Đã có</button>' : `<button data-uc="${k}" data-cur="coins">${fmt(p.coins)} 🪙</button><button data-uc="${k}" data-cur="gems">${p.gems} 💎</button>`}</div>`;
+              h += `<div class="item">${NEW_CHARS.includes(k) && !S.unlocked[k] ? '<span class="tag">MỚI</span>' : ''}<canvas width="144" height="144" data-k="${k}"></canvas><b>${CHARS[k].name}</b><small>${CHARS[k].role}</small>${S.unlocked[k] ? '<button disabled>✓ Đã có</button>' : `<button data-uc="${k}" data-cur="coins">${fmt(p.coins)} 🪙</button><button data-uc="${k}" data-cur="gems">${p.gems} 💎</button>`}</div>`;
             });
           } else {
             HATS.forEach(hh => {
