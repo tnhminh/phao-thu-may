@@ -1705,7 +1705,8 @@ document.getElementById('resMenu').onclick = () => {
   Meta.afterResult(() => goMenu(Meta.ctx.mode === 'campaign'));
 };
 
-Meta.init(); renderSlots(); startDemo(); loop();
+Meta.init(); renderSlots(); menu.style.display = 'none'; startDemo(); loop();
+document.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && titleEl.style.display !== 'none') { e.preventDefault(); titleEl.click(); } });
 if ('serviceWorker' in navigator && !Platform.native && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
 </body>
