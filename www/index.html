@@ -31,6 +31,18 @@ button.on{background:linear-gradient(180deg,#ffd36b,#d08a1c);color:#2a1700;borde
 #fire{background:linear-gradient(180deg,#ff6b55,#b8261a);border-color:#ffb0a3;min-width:150px;padding:6px 22px;display:flex;flex-direction:column;align-items:center;line-height:1.05;box-shadow:inset 0 1px 0 rgba(255,255,255,.3),0 4px 0 #6d140c,0 0 24px rgba(255,90,60,.35)}
 #fire span{font-size:22px;font-weight:800;letter-spacing:2px}
 #fire small{font-size:11px;opacity:.85;font-weight:500}
+#fire{position:relative;overflow:hidden;--p:0}
+#fire .pw{position:absolute;left:0;bottom:0;height:5px;width:calc(var(--p)*100%);background:linear-gradient(90deg,#ffd34a,#fff3b0);box-shadow:0 0 10px #ffd34a}
+#fire.charging{filter:brightness(1.2)}
+.cg{display:flex;flex-direction:column;align-items:center;gap:4px}
+.cg label{font-size:11px;letter-spacing:1px;color:#9fc0ff;text-transform:uppercase;font-weight:700;display:flex;gap:4px;align-items:center;white-space:nowrap}
+kbd{font-family:inherit;font-size:10px;line-height:15px;padding:0 5px;border-radius:5px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.28);border-bottom-width:2px;color:#e4edff;text-transform:none;letter-spacing:0}
+.grp{align-items:center}
+.meter{display:flex;flex-direction:column;align-items:center;justify-content:center;width:58px;gap:5px;font-size:16px}
+.meter .fuel{width:100%}
+#dock .angv{min-width:52px;text-align:center;font-size:21px}
+.ctl.ang{font-size:14px;min-width:76px}
+html:not(.myturn) #dock .cg,html:not(.myturn) #fire{opacity:.42;filter:grayscale(.5);pointer-events:none}
 #itembar button{position:relative}
 #itembar b{position:absolute;top:-8px;right:-8px;background:var(--gold);color:#2a1700;border-radius:10px;font-size:11px;padding:0 6px;line-height:18px}
 #help{margin:10px auto 20px;max-width:900px;font-size:14px;opacity:.85;line-height:1.6;text-align:center}
@@ -102,19 +114,30 @@ canvas#c{cursor:crosshair}
   <div id="rot">Xoay ngang điện thoại để màn chơi to và dễ ngắm hơn</div>
   <div id="stage"><canvas id="c"></canvas>
     <div id="touch">
-      <button class="tb mv l" data-k="ArrowLeft" aria-label="Sang trái">◀</button><button class="tb mv r" data-k="ArrowRight" aria-label="Sang phải">▶</button>
-      <button class="tb ang u" data-k="ArrowUp" aria-label="Tăng góc">▲</button><button class="tb ang d" data-k="ArrowDown" aria-label="Giảm góc">▼</button>
-      <button class="tb fire" data-k=" ">BẮN</button>
+      <div class="tpad tang" aria-label="Góc bắn">
+        <button data-k="ArrowUp" aria-label="Nâng nòng"><svg viewBox="0 0 32 24"><path class="bl" d="M6 19 L22 7"/><path class="ar" d="M27 15 A13 13 0 0 0 20 3"/><path class="ah" d="M17 2 L21 2.5 L20.5 6.5"/></svg><small>Nâng</small></button>
+        <div class="tmid"><b class="angv">45°</b><small>GÓC</small></div>
+        <button data-k="ArrowDown" aria-label="Hạ nòng"><svg viewBox="0 0 32 24"><path class="bl" d="M6 17 L24 13"/><path class="ar" d="M20 3 A13 13 0 0 1 27 15"/><path class="ah" d="M24.5 13 L27.5 16 L29.5 12.5"/></svg><small>Hạ</small></button>
+      </div>
+      <div class="tpad tmove" aria-label="Di chuyển">
+        <button data-k="ArrowLeft" aria-label="Đi sang trái"><svg viewBox="0 0 24 24"><path class="ch" d="M15 5 L8 12 L15 19"/></svg></button>
+        <div class="tmid"><span class="foot">👣</span><i class="fuel" title="Nhiên liệu"><u></u></i></div>
+        <button data-k="ArrowRight" aria-label="Đi sang phải"><svg viewBox="0 0 24 24"><path class="ch" d="M9 5 L16 12 L9 19"/></svg></button>
+      </div>
+      <button class="tfire" data-k=" " aria-label="Giữ để nạp lực, thả để bắn"><i class="ring"></i><b>BẮN</b><small class="sub">giữ để nạp</small></button>
       <div class="titems"></div>
       <button class="tb tpause" id="tPause" aria-label="Tạm dừng">❚❚</button>
     </div></div>
   <div id="dock">
-    <div class="grp"><button class="ctl" data-k="ArrowLeft">◀</button><button class="ctl" data-k="ArrowRight">▶</button></div>
-    <div class="grp"><button class="ctl" data-k="ArrowUp">▲</button><button class="ctl" data-k="ArrowDown">▼</button></div>
-    <button id="fire" data-k=" "><span>BẮN</span><small>giữ để nạp lực</small></button>
-    <div class="grp" id="wbar"><button class="w" data-w="0"></button><button class="w" data-w="1"></button><button class="w" data-w="2"></button></div>
-    <div class="grp" id="itembar"></div>
-    <div class="grp"><button id="pauseBtn" title="Tạm dừng (Esc)">❚❚</button><button id="fs" title="Toàn màn hình">⛶</button><button id="mute" title="Tắt/bật tiếng">🔊</button><button id="restart">☰ Menu</button></div>
+    <div class="cg"><label>Di chuyển <kbd>←</kbd><kbd>→</kbd></label>
+      <div class="grp"><button class="ctl" data-k="ArrowLeft" aria-label="Đi sang trái">◀</button><div class="meter"><span>👣</span><i class="fuel" title="Nhiên liệu"><u></u></i></div><button class="ctl" data-k="ArrowRight" aria-label="Đi sang phải">▶</button></div></div>
+    <div class="cg"><label>Góc bắn <kbd>↑</kbd><kbd>↓</kbd></label>
+      <div class="grp"><button class="ctl ang" data-k="ArrowDown">▼ Hạ</button><b class="angv">45°</b><button class="ctl ang" data-k="ArrowUp">▲ Nâng</button></div></div>
+    <button id="fire" data-k=" "><span>BẮN</span><small class="sub">giữ <kbd>Space</kbd> để nạp lực</small><i class="pw"></i></button>
+    <div class="cg"><label>Loại đạn <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd></label>
+      <div class="grp" id="wbar"><button class="w" data-w="0"></button><button class="w" data-w="1"></button><button class="w" data-w="2"></button></div></div>
+    <div class="cg"><label>Vật phẩm · 1 lần mỗi lượt <kbd>Z</kbd>–<kbd>B</kbd></label><div class="grp" id="itembar"></div></div>
+    <div class="grp sys"><button id="pauseBtn" title="Tạm dừng (Esc)">❚❚</button><button id="fs" title="Toàn màn hình">⛶</button><button id="mute" title="Tắt/bật tiếng">🔊</button><button id="restart">☰ Menu</button></div>
   </div>
   <details id="help"><summary>Hướng dẫn chơi</summary>
     Kéo chuột / vuốt ngón tay trên màn chơi để ngắm nhanh · Bấm thẳng vào thẻ vũ khí trong khung để đổi đạn · Esc để tạm dừng<br>
@@ -1717,6 +1740,7 @@ function loop() {
   // chỉ hiện nút cảm ứng/nhắc xoay màn khi đang chơi thật (không phải trận demo sau menu)
   const pl = !demo && menu.style.display === 'none' && titleEl.style.display === 'none';
   if (pl !== isPlaying) { isPlaying = pl; document.documentElement.classList.toggle('playing', pl); }
+  updateControls();
   requestAnimationFrame(loop);
 }
 
@@ -1896,12 +1920,29 @@ function releaseKey(k) {
   if (k === ' ' && charging && humanTurn()) fire(cur, cur.angle, power, cur.weapon);
 }
 function selectWeapon(i) { if (humanTurn() && !charging && canUse(cur, i)) { cur.weapon = i; SFX.click(); syncButtons(); } }
+// Cập nhật trực tiếp trên nút: góc bắn, nhiên liệu, vòng lực khi giữ BẮN, vạch lực phát trước, làm mờ khi chưa tới lượt
+const ctlEls = {ang: document.querySelectorAll('.angv'), fuel: document.querySelectorAll('.fuel u'), fire: document.querySelectorAll('#fire, #touch .tfire'), sub: document.querySelector('#touch .tfire .sub')};
+let ctlLast = '';
+function updateControls() {
+  const mine = humanTurn(), p = charging ? power/100 : 0, ang = cur ? cur.angle : 0, fuel = cur ? Math.max(0, cur.fuel)|0 : 0;
+  const lp = cur && cur.lastPower != null && !cur.ai ? cur.lastPower/100 : -1;
+  const key = `${+mine}|${ang}|${fuel}|${p.toFixed(3)}|${lp}`;
+  if (key === ctlLast) return; ctlLast = key;
+  document.documentElement.classList.toggle('myturn', mine);
+  ctlEls.ang.forEach(e => e.textContent = ang + '°');
+  ctlEls.fuel.forEach(e => e.style.width = fuel + '%');
+  ctlEls.fire.forEach(e => { e.style.setProperty('--p', p); e.style.setProperty('--lp', Math.max(0, lp)); e.style.setProperty('--tk', lp >= 0 ? '#fff' : 'transparent'); e.classList.toggle('charging', charging); });
+  if (ctlEls.sub) ctlEls.sub.textContent = charging ? Math.round(power) + '%' : 'giữ để nạp';
+}
 const itembar = document.getElementById('itembar');
 if (Platform.native || matchMedia('(pointer:coarse)').matches) document.documentElement.classList.add('touch');
 document.getElementById('tPause').onclick = () => togglePause();
 // WebView cũ chưa hỗ trợ aspect-ratio: tự đặt chiều cao nút tròn bằng chiều rộng
 if (!(window.CSS && CSS.supports && CSS.supports('aspect-ratio', '1'))) {
-  const fixAR = () => document.querySelectorAll('#touch .tb, #touch .titems button').forEach(b => b.style.height = b.offsetWidth + 'px');
+  const fixAR = () => {
+    document.querySelectorAll('#touch .tb, #touch .tfire, #touch .titems button').forEach(b => b.style.height = b.offsetWidth + 'px');
+    [['.tmove', 2.6], ['.tang', .42]].forEach(([s, r]) => { const e = document.querySelector('#touch ' + s); e.style.height = e.offsetWidth/r + 'px'; });
+  };
   addEventListener('resize', fixAR); setTimeout(fixAR, 0); setTimeout(fixAR, 800);
 }
 ITEMS.forEach(it => {

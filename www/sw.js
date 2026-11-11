@@ -1,6 +1,6 @@
 // Bộ đệm ngoại tuyến cho bản web (PWA). App native không cần file này.
 // Chiến lược: mạng trước (luôn lấy bản mới nhất khi có mạng), rớt mạng thì dùng bản đã lưu.
-const CACHE = 'ptm-v1.1.1';
+const CACHE = 'ptm-v1.2.0';
 const FILES = ['./', 'index.html', 'config.js', 'platform.js', 'meta.js', 'meta.css', 'manifest.webmanifest', 'privacy.html',
   'fonts/fonts.css', 'fonts/baloo2-latin.woff2', 'fonts/baloo2-latin-ext.woff2', 'fonts/baloo2-vietnamese.woff2',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png'];

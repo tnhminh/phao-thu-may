@@ -95,13 +95,44 @@ html.touch #touch{display:block;position:absolute;top:0;right:0;bottom:0;left:0;
   font-size:clamp(14px,2.3vw,30px);background:rgba(20,30,60,.38);border:2px solid rgba(255,255,255,.35);color:#fff;
   box-shadow:0 3px 0 rgba(0,0,0,.3);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px)}
 #touch .tb:active{background:rgba(255,207,90,.45)}
-#touch .mv{width:7.2%;bottom:17.5%}
-#touch .mv.l{left:1.6%}#touch .mv.r{left:9.6%}
-#touch .ang{width:5.6%;left:5.6%}
-#touch .ang.u{bottom:43%}#touch .ang.d{bottom:31.5%}
-#touch .fire{width:12%;right:1.8%;bottom:17.5%;font-weight:800;font-size:clamp(14px,2.1vw,28px);
-  background:radial-gradient(circle at 35% 30%,#ff8a70,#c8261a);border-color:#ffd0c4;box-shadow:0 0 24px rgba(255,90,60,.5),0 4px 0 #6d140c}
 #touch .tpause{width:4.2%;top:2%;left:61.5%;font-size:clamp(10px,1.4vw,18px)}
+/* Cụm nút dạng viên thuốc: Di chuyển (◀ 👣+nhiên liệu ▶) và Góc bắn (Nâng / 45° / Hạ) */
+#touch .tpad{position:absolute;pointer-events:auto;display:flex;align-items:stretch;border-radius:999px;overflow:hidden;
+  background:rgba(14,22,48,.5);border:2px solid rgba(255,255,255,.3);box-shadow:0 4px 0 rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.15);
+  backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);transition:opacity .2s,filter .2s}
+#touch .tpad button{all:unset;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:#fff;cursor:pointer;
+  touch-action:none;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
+#touch .tpad button:active{background:rgba(255,207,90,.42)}
+#touch .tpad svg{width:58%;max-height:62%;fill:none;stroke-linecap:round;stroke-linejoin:round}
+#touch .tpad .bl{stroke:#fff;stroke-width:4.2}
+#touch .tpad .ar,#touch .tpad .ah{stroke:#ffd34a;stroke-width:2.2}
+#touch .tpad .ch{stroke:#fff;stroke-width:3.4}
+#touch .tpad button small{font-size:clamp(8px,1.05vw,13px);font-weight:700;opacity:.9;line-height:1}
+#touch .tmid{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4%}
+#touch .tmid small{font-size:clamp(7px,.85vw,11px);letter-spacing:1px;opacity:.7;line-height:1}
+#touch .tmove{left:1.5%;bottom:17%;width:20%;aspect-ratio:2.6}
+#touch .tmove button{flex:0 0 33%}
+#touch .tmove .tmid{flex:1;border-left:1px solid rgba(255,255,255,.15);border-right:1px solid rgba(255,255,255,.15)}
+#touch .foot{font-size:clamp(11px,1.6vw,20px);line-height:1}
+.fuel{display:block;width:80%;height:5px;border-radius:3px;background:rgba(255,255,255,.18);overflow:hidden}
+.fuel u{display:block;height:100%;width:100%;background:linear-gradient(90deg,#ff9d3a,#ffd34a);transition:width .1s}
+#touch .tang{left:1.5%;bottom:34%;width:7.6%;aspect-ratio:.42;flex-direction:column;border-radius:20px}
+#touch .tang .tmid{flex:0 0 24%;border-top:1px solid rgba(255,255,255,.15);border-bottom:1px solid rgba(255,255,255,.15)}
+.angv{color:#ffd34a;font-weight:800;line-height:1}
+#touch .angv{font-size:clamp(12px,1.7vw,22px)}
+/* Nút BẮN: vòng lực sáng dần khi giữ, vạch trắng = lực phát trước */
+#touch .tfire{position:absolute;pointer-events:auto;right:2%;bottom:17%;width:13%;aspect-ratio:1;padding:0;border-radius:50%;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;color:#fff;
+  background:radial-gradient(circle at 35% 30%,#ff8a70,#c8261a);border:2px solid #ffd0c4;box-shadow:0 0 24px rgba(255,90,60,.5),0 4px 0 #6d140c;
+  --p:0;--lp:0;--tk:transparent;transition:transform .1s,opacity .2s,filter .2s}
+#touch .tfire b{font-size:clamp(14px,2.2vw,28px);font-weight:800;letter-spacing:1px;line-height:1}
+#touch .tfire .sub{font-size:clamp(7px,.95vw,12px);font-weight:700;opacity:.92;line-height:1}
+#touch .tfire.charging{transform:scale(1.07);box-shadow:0 0 36px rgba(255,200,80,.75),0 4px 0 #6d140c}
+.tfire .ring{position:absolute;inset:-10%;border-radius:50%;pointer-events:none;
+  background:conic-gradient(from calc(var(--lp)*1turn - 2deg),var(--tk) 0 4deg,transparent 4deg),conic-gradient(#ffd34a calc(var(--p)*1turn),rgba(255,255,255,.18) 0);
+  -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 7px),#000 calc(100% - 6px));mask:radial-gradient(farthest-side,transparent calc(100% - 7px),#000 calc(100% - 6px))}
+/* Ngoài lượt của mình: nút mờ đi và không bấm được */
+html.touch:not(.myturn) #touch .tpad,html.touch:not(.myturn) #touch .tfire,html.touch:not(.myturn) #touch .titems{opacity:.35;filter:grayscale(.7);pointer-events:none}
 #touch .titems{position:absolute;left:1.2%;top:16%;display:flex;flex-direction:row;gap:.8%;width:40%;pointer-events:auto}
 #touch .titems button{position:relative;width:12%;height:auto;aspect-ratio:1;padding:0;border-radius:50%;font-size:clamp(12px,2vw,24px);background:rgba(20,30,60,.45);border:1.5px solid rgba(255,255,255,.3)}
 #touch .titems b{position:absolute;right:-4px;top:-4px;background:var(--gold);color:#2a1700;border-radius:8px;font-size:10px;line-height:15px;padding:0 4px}
@@ -123,4 +154,4 @@ html.touch:not(.playing) #touch{display:none}
   #start{font-size:20px;padding:8px 48px}
 }
 /* Máy tính: thu khung game theo chiều cao cửa sổ để khung + dải nút vừa một màn hình (laptop 1366x768...) */
-html:not(.touch) #stage{width:min(100%,max(480px,calc((100vh - 152px)*2)));margin:0 auto}
+html:not(.touch) #stage{width:min(100%,max(480px,calc((100vh - 200px)*2)));margin:0 auto}
