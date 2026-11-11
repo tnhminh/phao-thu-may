@@ -20,7 +20,6 @@ body{margin:0;min-height:100vh;background:radial-gradient(1200px 600px at 50% -1
 #wrap{width:100%;max-width:1280px;padding:10px}
 #stage{position:relative;border-radius:18px;overflow:hidden;box-shadow:0 0 0 1px rgba(150,190,255,.25),0 20px 60px rgba(0,0,0,.6),0 0 80px rgba(60,120,255,.15)}
 canvas#c{width:100%;display:block;aspect-ratio:2/1;touch-action:none;background:#0b1226}
-#dock{margin-top:10px;display:flex;flex-wrap:wrap;gap:10px;justify-content:center;align-items:center;padding:10px;border-radius:16px;background:linear-gradient(180deg,rgba(30,44,80,.85),rgba(12,18,36,.9));border:1px solid var(--line)}
 .grp{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
 button{font-family:inherit;color:var(--txt);background:linear-gradient(180deg,#2c3f6c,#18233f);border:1px solid rgba(160,195,255,.3);border-radius:12px;padding:8px 14px;font-size:15px;font-weight:600;cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:none;box-shadow:inset 0 1px 0 rgba(255,255,255,.15),0 3px 0 rgba(0,0,0,.35);transition:transform .08s,filter .15s}
 button:hover:not(:disabled){filter:brightness(1.15)}
@@ -40,11 +39,7 @@ kbd{font-family:inherit;font-size:10px;line-height:15px;padding:0 5px;border-rad
 .grp{align-items:center}
 .meter{display:flex;flex-direction:column;align-items:center;justify-content:center;width:58px;gap:5px;font-size:16px}
 .meter .fuel{width:100%}
-#dock .angv{min-width:52px;text-align:center;font-size:21px}
 .ctl.ang{font-size:14px;min-width:76px}
-html:not(.myturn) #dock .cg,html:not(.myturn) #fire{opacity:.42;filter:grayscale(.5);pointer-events:none}
-#itembar button{position:relative}
-#itembar b{position:absolute;top:-8px;right:-8px;background:var(--gold);color:#2a1700;border-radius:10px;font-size:11px;padding:0 6px;line-height:18px}
 #help{margin:10px auto 20px;max-width:900px;font-size:14px;opacity:.85;line-height:1.6;text-align:center}
 #help summary{cursor:pointer;font-weight:700}
 #menu{position:fixed;top:0;right:0;bottom:0;left:0;z-index:10;overflow:auto;background:radial-gradient(900px 500px at 50% 0%,rgba(40,70,140,.55),rgba(5,8,18,.86));backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);padding:18px 14px 30px}
@@ -115,30 +110,19 @@ canvas#c{cursor:crosshair}
   <div id="stage"><canvas id="c"></canvas>
     <div id="touch">
       <div class="tpad tang" aria-label="Góc bắn">
-        <button data-k="ArrowUp" aria-label="Nâng nòng"><svg viewBox="0 0 32 24"><path class="bl" d="M6 19 L22 7"/><path class="ar" d="M27 15 A13 13 0 0 0 20 3"/><path class="ah" d="M17 2 L21 2.5 L20.5 6.5"/></svg><small>Nâng</small></button>
+        <button data-k="ArrowUp" aria-label="Nâng nòng"><svg viewBox="0 0 32 24"><path class="bl" d="M6 19 L22 7"/><path class="ar" d="M27 15 A13 13 0 0 0 20 3"/><path class="ah" d="M17 2 L21 2.5 L20.5 6.5"/></svg><small>Nâng</small><kbd class="kh">↑</kbd></button>
         <div class="tmid"><b class="angv">45°</b><small>GÓC</small></div>
-        <button data-k="ArrowDown" aria-label="Hạ nòng"><svg viewBox="0 0 32 24"><path class="bl" d="M6 17 L24 13"/><path class="ar" d="M20 3 A13 13 0 0 1 27 15"/><path class="ah" d="M24.5 13 L27.5 16 L29.5 12.5"/></svg><small>Hạ</small></button>
+        <button data-k="ArrowDown" aria-label="Hạ nòng"><svg viewBox="0 0 32 24"><path class="bl" d="M6 17 L24 13"/><path class="ar" d="M20 3 A13 13 0 0 1 27 15"/><path class="ah" d="M24.5 13 L27.5 16 L29.5 12.5"/></svg><small>Hạ</small><kbd class="kh">↓</kbd></button>
       </div>
       <div class="tpad tmove" aria-label="Di chuyển">
-        <button data-k="ArrowLeft" aria-label="Đi sang trái"><svg viewBox="0 0 24 24"><path class="ch" d="M15 5 L8 12 L15 19"/></svg></button>
+        <button data-k="ArrowLeft" aria-label="Đi sang trái"><svg viewBox="0 0 24 24"><path class="ch" d="M15 5 L8 12 L15 19"/></svg><kbd class="kh">←</kbd></button>
         <div class="tmid"><span class="foot">👣</span><i class="fuel" title="Nhiên liệu"><u></u></i></div>
-        <button data-k="ArrowRight" aria-label="Đi sang phải"><svg viewBox="0 0 24 24"><path class="ch" d="M9 5 L16 12 L9 19"/></svg></button>
+        <button data-k="ArrowRight" aria-label="Đi sang phải"><svg viewBox="0 0 24 24"><path class="ch" d="M9 5 L16 12 L9 19"/></svg><kbd class="kh">→</kbd></button>
       </div>
-      <button class="tfire" data-k=" " aria-label="Giữ để nạp lực, thả để bắn"><i class="ring"></i><b>BẮN</b><small class="sub">giữ để nạp</small></button>
+      <button class="tfire" data-k=" " aria-label="Giữ để nạp lực, thả để bắn"><i class="ring"></i><b>BẮN</b><small class="sub">giữ để nạp</small><kbd class="kh">Space</kbd></button>
       <div class="titems"></div>
-      <button class="tb tpause" id="tPause" aria-label="Tạm dừng">❚❚</button>
+      <div class="tsys"><button id="pauseBtn" title="Tạm dừng (Esc)" aria-label="Tạm dừng">❚❚</button><button id="mute" title="Tắt/bật tiếng" aria-label="Tắt/bật tiếng">🔊</button><button id="fs" title="Toàn màn hình" aria-label="Toàn màn hình">⛶</button></div>
     </div></div>
-  <div id="dock">
-    <div class="cg"><label>Di chuyển <kbd>←</kbd><kbd>→</kbd></label>
-      <div class="grp"><button class="ctl" data-k="ArrowLeft" aria-label="Đi sang trái">◀</button><div class="meter"><span>👣</span><i class="fuel" title="Nhiên liệu"><u></u></i></div><button class="ctl" data-k="ArrowRight" aria-label="Đi sang phải">▶</button></div></div>
-    <div class="cg"><label>Góc bắn <kbd>↑</kbd><kbd>↓</kbd></label>
-      <div class="grp"><button class="ctl ang" data-k="ArrowDown">▼ Hạ</button><b class="angv">45°</b><button class="ctl ang" data-k="ArrowUp">▲ Nâng</button></div></div>
-    <button id="fire" data-k=" "><span>BẮN</span><small class="sub">giữ <kbd>Space</kbd> để nạp lực</small><i class="pw"></i></button>
-    <div class="cg"><label>Loại đạn <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd></label>
-      <div class="grp" id="wbar"><button class="w" data-w="0"></button><button class="w" data-w="1"></button><button class="w" data-w="2"></button></div></div>
-    <div class="cg"><label>Vật phẩm · 1 lần mỗi lượt <kbd>Z</kbd>–<kbd>B</kbd></label><div class="grp" id="itembar"></div></div>
-    <div class="grp sys"><button id="pauseBtn" title="Tạm dừng (Esc)">❚❚</button><button id="fs" title="Toàn màn hình">⛶</button><button id="mute" title="Tắt/bật tiếng">🔊</button><button id="restart">☰ Menu</button></div>
-  </div>
   <details id="help"><summary>Hướng dẫn chơi</summary>
     Kéo chuột / vuốt ngón tay trên màn chơi để ngắm nhanh · Bấm thẳng vào thẻ vũ khí trong khung để đổi đạn · Esc để tạm dừng<br>
     ◀ ▶ di chuyển (tốn nhiên liệu) · ▲ ▼ chỉnh góc trong giới hạn của nhân vật · Giữ SPACE nạp lực, thả để bắn<br>
@@ -786,8 +770,8 @@ function newGame(cfg) {
   projs = []; booms = []; parts = []; popups = []; winner = null; winTeam = -1;
   cut = null; ann = null; annQ.length = 0; slowT = 0; banner = null; paused = false; charging = false;
   windMax = cfg.windMax || 10;
-  // màn cảm ứng: lùi vị trí xuất phát vào trong để không bị nút ◀▶▲▼ / BẮN che
-  const ins = document.documentElement.classList.contains('touch') ? 85 : 0;
+  // nút điều khiển nằm trên màn chơi: lùi vị trí xuất phát vào trong để không bị che
+  const ins = 85;
   const vsAI = cfg.mode === 'ai', bn = vsAI ? 'Máy' : 'Xanh', xs0 = [110 + ins, 300 + ins, 205 + ins], xs1 = [W - 110 - ins, W - 300 - ins, W - 205 - ins];
   const rT = cfg.r.map((k, i) => mkUnit(0, xs0[i], 'Đỏ ' + (i + 1), false, k));
   const bT = cfg.b.map((k, i) => mkUnit(1, xs1[i], bn + ' ' + (i + 1), vsAI, k));
@@ -1934,9 +1918,7 @@ function updateControls() {
   ctlEls.fire.forEach(e => { e.style.setProperty('--p', p); e.style.setProperty('--lp', Math.max(0, lp)); e.style.setProperty('--tk', lp >= 0 ? '#fff' : 'transparent'); e.classList.toggle('charging', charging); });
   if (ctlEls.sub) ctlEls.sub.textContent = charging ? Math.round(power) + '%' : 'giữ để nạp';
 }
-const itembar = document.getElementById('itembar');
 if (Platform.native || matchMedia('(pointer:coarse)').matches) document.documentElement.classList.add('touch');
-document.getElementById('tPause').onclick = () => togglePause();
 // WebView cũ chưa hỗ trợ aspect-ratio: tự đặt chiều cao nút tròn bằng chiều rộng
 if (!(window.CSS && CSS.supports && CSS.supports('aspect-ratio', '1'))) {
   const fixAR = () => {
@@ -1946,14 +1928,9 @@ if (!(window.CSS && CSS.supports && CSS.supports('aspect-ratio', '1'))) {
   addEventListener('resize', fixAR); setTimeout(fixAR, 0); setTimeout(fixAR, 800);
 }
 ITEMS.forEach(it => {
-  const t = document.createElement('button'); t.dataset.item = it.k; t.dataset.short = 1; t.title = it.name;
+  const t = document.createElement('button'); t.dataset.item = it.k; t.dataset.short = 1; t.title = it.name + ' (' + it.key.toUpperCase() + ')';
   t.addEventListener('click', () => { if (humanTurn()) useItem(cur, it.k); });
   document.querySelector('#touch .titems').appendChild(t);
-});
-ITEMS.forEach(it => {
-  const b = document.createElement('button'); b.dataset.item = it.k; b.title = it.name + ' (' + it.key.toUpperCase() + ')';
-  b.addEventListener('click', () => { if (humanTurn()) useItem(cur, it.k); });
-  itembar.appendChild(b);
 });
 function syncButtons() {
   const human = humanTurn();
@@ -1964,7 +1941,7 @@ function syncButtons() {
   });
   document.querySelectorAll('button[data-item]').forEach(b => {
     const it = ITEMS.find(i => i.k === b.dataset.item), n = cur ? cur.items[it.k] : 0;
-    b.innerHTML = b.dataset.short ? `${it.ic}<b>${n}</b>` : `${it.ic} ${it.name}<b>${n}</b>`;
+    b.innerHTML = `${it.ic}<b>${n}</b><kbd class="kh">${it.key.toUpperCase()}</kbd>`;
     b.disabled = !human || !n || turnFx.item;
   });
 }
@@ -2044,7 +2021,6 @@ document.getElementById('start').onclick = () => {
   ac(); MUS.on = true;
   Meta.beforeMatch(cfg, () => { menu.style.display = 'none'; demo = false; lastCfg = cfg; newGame(cfg); });
 };
-document.getElementById('restart').onclick = () => goMenu();
 const titleEl = document.getElementById('title');
 titleEl.onclick = () => { ac(); MUS.on = true; SFX.click(); titleEl.style.display = 'none'; Meta.applySettings(); Meta.showHub(); };
 document.getElementById('pauseBtn').onclick = () => togglePause();
