@@ -105,3 +105,22 @@ html.touch #touch{display:block;position:absolute;top:0;right:0;bottom:0;left:0;
 #touch .titems{position:absolute;left:1.2%;top:16%;display:flex;flex-direction:row;gap:.8%;width:40%;pointer-events:auto}
 #touch .titems button{position:relative;width:12%;height:auto;aspect-ratio:1;padding:0;border-radius:50%;font-size:clamp(12px,2vw,24px);background:rgba(20,30,60,.45);border:1.5px solid rgba(255,255,255,.3)}
 #touch .titems b{position:absolute;right:-4px;top:-4px;background:var(--gold);color:#2a1700;border-radius:8px;font-size:10px;line-height:15px;padding:0 4px}
+/* ===== Điện thoại: chỉ hiện nút cảm ứng khi đang chơi; nhắc xoay ngang; menu gọn trên màn thấp ===== */
+html.touch:not(.playing) #touch{display:none}
+@keyframes tilt{0%,30%{transform:rotate(0)}55%,85%{transform:rotate(-90deg)}100%{transform:rotate(0)}}
+@media (orientation:portrait){
+  html.touch.playing #rot{display:flex;position:fixed;left:16px;right:16px;top:max(16px,calc(50% - 25vw - 120px));z-index:5;align-items:center;justify-content:center;gap:10px;
+    font-size:15px;font-weight:700;padding:12px 14px;border-radius:14px;background:rgba(255,207,90,.12);border:1px solid rgba(255,207,90,.45);color:#ffe7a8;text-align:center}
+  html.touch.playing #rot::before{content:'📱';font-size:30px;display:inline-block;animation:tilt 2.4s ease-in-out infinite}
+}
+#start{position:sticky;bottom:10px;z-index:3}
+@media (max-width:520px){.tag,#title .tag{letter-spacing:3px;font-size:12px}}
+@media (max-height:500px){
+  #menu{padding-top:10px}
+  #menu .logo,#menu .tag{display:none}
+  .card canvas{height:76px}
+  .card p{min-height:0;font-size:12px}
+  #start{font-size:20px;padding:8px 48px}
+}
+/* Máy tính: thu khung game theo chiều cao cửa sổ để khung + dải nút vừa một màn hình (laptop 1366x768...) */
+html:not(.touch) #stage{width:min(100%,max(480px,calc((100vh - 152px)*2)));margin:0 auto}

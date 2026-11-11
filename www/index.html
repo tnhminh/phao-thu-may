@@ -99,7 +99,7 @@ canvas#c{cursor:crosshair}
 </head>
 <body>
 <div id="wrap">
-  <div id="rot">📱 Xoay ngang điện thoại và bấm ⛶ để chơi toàn màn hình!</div>
+  <div id="rot">Xoay ngang điện thoại để màn chơi to và dễ ngắm hơn</div>
   <div id="stage"><canvas id="c"></canvas>
     <div id="touch">
       <button class="tb mv l" data-k="ArrowLeft" aria-label="Sang trái">◀</button><button class="tb mv r" data-k="ArrowRight" aria-label="Sang phải">▶</button>
@@ -763,7 +763,9 @@ function newGame(cfg) {
   projs = []; booms = []; parts = []; popups = []; winner = null; winTeam = -1;
   cut = null; ann = null; annQ.length = 0; slowT = 0; banner = null; paused = false; charging = false;
   windMax = cfg.windMax || 10;
-  const vsAI = cfg.mode === 'ai', bn = vsAI ? 'Máy' : 'Xanh', xs0 = [110, 300, 205], xs1 = [W - 110, W - 300, W - 205];
+  // màn cảm ứng: lùi vị trí xuất phát vào trong để không bị nút ◀▶▲▼ / BẮN che
+  const ins = document.documentElement.classList.contains('touch') ? 85 : 0;
+  const vsAI = cfg.mode === 'ai', bn = vsAI ? 'Máy' : 'Xanh', xs0 = [110 + ins, 300 + ins, 205 + ins], xs1 = [W - 110 - ins, W - 300 - ins, W - 205 - ins];
   const rT = cfg.r.map((k, i) => mkUnit(0, xs0[i], 'Đỏ ' + (i + 1), false, k));
   const bT = cfg.b.map((k, i) => mkUnit(1, xs1[i], bn + ' ' + (i + 1), vsAI, k));
   if (cfg.bHp) bT.forEach(u => { u.maxhp = u.hp = u.shownHp = Math.round(u.hp*cfg.bHp); });
@@ -1708,9 +1710,13 @@ function draw() {
   }
   if (state === 'cutin') drawCut();
 }
+let isPlaying = null;
 function loop() {
   if (!paused) { const ts = slowT > 0 ? .3 : 1; if (slowT > 0) slowT--; acc += ts; while (acc >= 1) { update(); acc -= 1; } }
   draw(); if (menu.style.display !== 'none') drawMenuCanvases();
+  // chỉ hiện nút cảm ứng/nhắc xoay màn khi đang chơi thật (không phải trận demo sau menu)
+  const pl = !demo && menu.style.display === 'none' && titleEl.style.display === 'none';
+  if (pl !== isPlaying) { isPlaying = pl; document.documentElement.classList.toggle('playing', pl); }
   requestAnimationFrame(loop);
 }
 
