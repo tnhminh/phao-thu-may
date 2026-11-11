@@ -1,0 +1,11 @@
+{
+  "appId": "vn.phaothumay.game",
+  "appName": "Pháo Thủ Mây",
+  "webDir": "www",
+  "android": { "backgroundColor": "#070b16" },
+  "ios": { "backgroundColor": "#070b16", "contentInset": "never" },
+  "plugins": {
+    "SplashScreen": { "launchShowDuration": 1500, "launchAutoHide": false, "backgroundColor": "#070b16", "showSpinner": false },
+    "LocalNotifications": { "iconColor": "#ffcf5a" }
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "name": "phao-thu-may",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Pháo Thủ Mây – game bắn pháo theo lượt (Capacitor app).",
+  "scripts": {
+    "serve": "python3 -m http.server 8080 --directory www",
+    "assets": "capacitor-assets generate --iconBackgroundColor '#2f6fd0' --splashBackgroundColor '#070b16'",
+    "sync": "cap sync",
+    "android:debug": "cap sync android && cd android && ./gradlew assembleDebug",
+    "android:release": "cap sync android && cd android && ./gradlew bundleRelease",
+    "ios:open": "cap sync ios && cap open ios"
+  },
+  "dependencies": {
+    "@capacitor-community/admob": "8.3.0",
+    "@capacitor-community/in-app-review": "8.0.0",
+    "@capacitor/android": "8.6.0",
+    "@capacitor/app": "8.1.2",
+    "@capacitor/core": "8.6.0",
+    "@capacitor/haptics": "8.0.2",
+    "@capacitor/ios": "8.6.0",
+    "@capacitor/local-notifications": "8.3.1",
+    "@capacitor/screen-orientation": "8.0.2",
+    "@capacitor/splash-screen": "8.0.2",
+    "@capacitor/status-bar": "8.0.4",
+    "cordova-plugin-purchase": "13.20.0"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "4.0.0",
+    "@capacitor/cli": "8.6.0"
+  }
+}
